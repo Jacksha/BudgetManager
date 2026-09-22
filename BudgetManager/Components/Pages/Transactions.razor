@@ -1,0 +1,343 @@
+﻿@page "/transactions"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using BudgetManager.Data
+@using BudgetManager.Models
+@using BudgetManager.Services
+
+@inject TransactionService TransactionService
+@inject CategoryService CategoryService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Transactions - Budget Manager</PageTitle>
+
+<h3>Transactions</h3>
+
+<p class="text-muted">
+    Track your income and expenses.
+</p>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success" role="status">
+        @successMessage
+    </div>
+}
+
+@* Add transaction *@
+<div class="card mb-4">
+    <div class="card-body">
+
+        <h5 class="card-title">Add transaction</h5>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Type</label>
+
+                <select class="form-select"
+                        @bind="newTransactionType"
+                        disabled="@isSaving">
+
+                    <option value="@TransactionType.Expense">
+                        Expense
+                    </option>
+
+                    <option value="@TransactionType.Income">
+                        Income
+                    </option>
+
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Amount (EUR)</label>
+
+                <input type="number"
+                       class="form-control"
+                       min="0.01"
+                       max="9999999999999999.99"
+                       step="0.01"
+                       @bind="newAmount"
+                       disabled="@isSaving" />
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Category</label>
+
+                <select class="form-select"
+                        @bind="selectedCategoryId"
+                        disabled="@isSaving">
+
+                    <option value="0">
+                        -- Select category --
+                    </option>
+
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Date</label>
+
+                <input type="date"
+                       class="form-control"
+                       @bind="newDate"
+                       @bind:format="yyyy-MM-dd"
+                       disabled="@isSaving" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Description (optional)</label>
+
+                <input type="text"
+                       class="form-control"
+                       placeholder="Transaction description"
+                       maxlength="250"
+                       @bind="newDescription"
+                       @bind:event="oninput"
+                       disabled="@isSaving" />
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-primary"
+                        @onclick="AddTransaction"
+                        disabled="@(isSaving || categories.Count == 0)">
+
+                    @(isSaving ? "Saving..." : "Add transaction")
+
+                </button>
+            </div>
+
+        </div>
+
+        @if (categories.Count == 0 && !isLoading)
+        {
+            <div class="alert alert-info mt-3">
+                You need to create a category before adding transactions.
+
+                <a href="/categories">Manage categories</a>
+            </div>
+        }
+
+    </div>
+</div>
+
+@* Transaction list *@
+@if (isLoading)
+{
+    <p>Loading transactions...</p>
+}
+else if (transactions.Count == 0)
+{
+    <div class="alert alert-info">
+        You haven't recorded any transactions yet.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <h5 class="card-title mb-3">
+                Recent transactions
+            </h5>
+
+            <div class="table-responsive">
+
+                <table class="table table-striped align-middle">
+
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var transaction in transactions)
+                        {
+                            <tr @key="transaction.Id">
+
+                                <td>
+                                    @transaction.Date.ToString("dd.MM.yyyy")
+                                </td>
+
+                                <td>
+                                    @transaction.Description
+                                </td>
+
+                                <td>
+                                    @transaction.Category?.Name
+                                </td>
+
+                                <td>
+                                    @transaction.Type
+                                </td>
+
+                                <td class="text-end">
+
+                                    @if (transaction.Type == TransactionType.Income)
+                                    {
+                                        <span class="text-success fw-bold">
+                                            +@transaction.Amount.ToString("N2")
+                                            @transaction.Currency
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger fw-bold">
+                                            -@transaction.Amount.ToString("N2")
+                                            @transaction.Currency
+                                        </span>
+                                    }
+
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    private List<Transaction> transactions = new();
+    private List<Category> categories = new();
+
+    private string? userId;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+
+    // New transaction form
+    private string newDescription = string.Empty;
+    private decimal newAmount;
+    private DateTime newDate = DateTime.Today;
+
+    private TransactionType newTransactionType =
+        TransactionType.Expense;
+
+    private int selectedCategoryId;
+
+
+    // Load data for the signed-in user.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            userId = UserManager.GetUserId(authState.User);
+
+            if (userId is not null)
+            {
+                await LoadData();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private async Task LoadData()
+    {
+        if (userId is null)
+            return;
+
+        categories =
+            await CategoryService.GetCategoriesAsync(userId);
+
+        transactions =
+            await TransactionService.GetTransactionsAsync(userId);
+    }
+
+
+    // CREATE
+    private async Task AddTransaction()
+    {
+        if (userId is null || isSaving)
+            return;
+
+        errorMessage = null;
+        successMessage = null;
+
+        // Basic form validation.
+        if (newAmount <= 0)
+        {
+            errorMessage = "Amount must be greater than zero.";
+            return;
+        }
+
+        if (selectedCategoryId == 0)
+        {
+            errorMessage = "Please select a category.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await TransactionService.AddTransactionAsync(
+                newDescription,
+                newAmount,
+                newDate,
+                newTransactionType,
+                selectedCategoryId,
+                userId);
+
+            // Reset the form.
+            newDescription = string.Empty;
+            newAmount = 0;
+            newDate = DateTime.Today;
+            selectedCategoryId = 0;
+            newTransactionType = TransactionType.Expense;
+
+            successMessage = "Transaction added successfully.";
+
+            await LoadData();
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
