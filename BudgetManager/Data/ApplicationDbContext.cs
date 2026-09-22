@@ -22,7 +22,7 @@ namespace BudgetManager.Data
 
             builder.Entity<Category>()
                 .Property(c => c.Name)
-                .HasMaxLength(30)
+                .HasMaxLength(35)
                 .IsRequired();
 
             builder.Entity<Category>()

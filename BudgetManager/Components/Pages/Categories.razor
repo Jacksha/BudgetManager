@@ -1,0 +1,161 @@
+﻿@page "/categories"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using BudgetManager.Data
+@using BudgetManager.Models
+@using BudgetManager.Services
+
+@inject CategoryService CategoryService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Categories - Budget Manager</PageTitle>
+
+<h3>Categories</h3>
+
+<p class="text-muted">
+    Manage your financial categories.
+</p>
+
+<div class="card mb-4">
+    <div class="card-body">
+
+        <h5 class="card-title">Add category</h5>
+
+        <div class="row g-2">
+
+            <div class="col-12 col-md-8">
+                <input class="form-control"
+                       placeholder="Category name"
+                       maxlength="35"
+                       @bind="newCategoryName"
+                       @bind:event="oninput" />
+            </div>
+
+            <div class="col-12 col-md-4">
+                <button class="btn btn-primary w-100"
+                        @onclick="AddCategory"
+                        disabled="@isSaving">
+
+                    @(isSaving ? "Saving..." : "Add category")
+
+                </button>
+            </div>
+
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                @errorMessage
+            </div>
+        }
+
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading categories...</p>
+}
+else if (categories.Count == 0)
+{
+    <div class="alert alert-info">
+        You haven't created any categories yet.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <table class="table table-striped">
+
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var category in categories)
+                    {
+                        <tr>
+                            <td>@category.Name</td>
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    private List<Category> categories = new();
+
+    private string newCategoryName = string.Empty;
+
+    private string? userId;
+
+    private string? errorMessage;
+
+    private bool isLoading = true;
+
+    private bool isSaving = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        userId = UserManager.GetUserId(authState.User);
+
+        if (userId is not null)
+        {
+            categories =
+                await CategoryService.GetCategoriesAsync(userId);
+        }
+
+        isLoading = false;
+    }
+
+
+    private async Task AddCategory()
+    {
+        if (userId is null || isSaving)
+            return;
+
+        errorMessage = null;
+
+        isSaving = true;
+
+        try
+        {
+            await CategoryService.AddCategoryAsync(
+                newCategoryName,
+                userId);
+
+            newCategoryName = string.Empty;
+
+            categories =
+                await CategoryService.GetCategoriesAsync(userId);
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}
