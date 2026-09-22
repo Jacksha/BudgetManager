@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Identity;
 
 namespace BudgetManager.Data
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
     public class ApplicationUser : IdentityUser
     {
+        public string BaseCurrency { get; set; } = "EUR";
     }
-
 }
