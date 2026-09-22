@@ -1,8 +1,8 @@
 ﻿@page "/categories"
-@rendermode InteractiveServer
 @attribute [Authorize]
 
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Identity
 @using BudgetManager.Data
 @using BudgetManager.Models
@@ -20,6 +20,15 @@
     Manage your financial categories.
 </p>
 
+@* Error message *@
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+@* Add category *@
 <div class="card mb-4">
     <div class="card-body">
 
@@ -32,13 +41,14 @@
                        placeholder="Category name"
                        maxlength="35"
                        @bind="newCategoryName"
-                       @bind:event="oninput" />
+                       @bind:event="oninput"
+                       disabled="@isSaving" />
             </div>
 
             <div class="col-12 col-md-4">
                 <button class="btn btn-primary w-100"
                         @onclick="AddCategory"
-                        disabled="@isSaving">
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(newCategoryName))">
 
                     @(isSaving ? "Saving..." : "Add category")
 
@@ -46,17 +56,10 @@
             </div>
 
         </div>
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger mt-3">
-                @errorMessage
-            </div>
-        }
-
     </div>
 </div>
 
+@* Category list *@
 @if (isLoading)
 {
     <p>Loading categories...</p>
@@ -72,28 +75,101 @@ else
     <div class="card">
         <div class="card-body">
 
-            <table class="table table-striped">
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
 
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-
-                    @foreach (var category in categories)
-                    {
+                    <thead>
                         <tr>
-                            <td>@category.Name</td>
+                            <th>Name</th>
+                            <th class="text-end">Actions</th>
                         </tr>
-                    }
+                    </thead>
 
-                </tbody>
+                    <tbody>
+                        @foreach (var category in categories)
+                        {
+                            <tr @key="category.Id">
 
-            </table>
+                                <td>
+                                    @if (editingCategoryId == category.Id)
+                                    {
+                                        <input class="form-control"
+                                               maxlength="35"
+                                               @bind="editingCategoryName"
+                                               @bind:event="oninput"
+                                               disabled="@isSaving" />
+                                    }
+                                    else
+                                    {
+                                        @category.Name
+                                    }
+                                </td>
+
+                                <td class="text-end">
+
+                                    @if (editingCategoryId == category.Id)
+                                    {
+                                        <button class="btn btn-success btn-sm me-2"
+                                                @onclick="SaveEdit"
+                                                disabled="@(isSaving || string.IsNullOrWhiteSpace(editingCategoryName))">
+                                            Save
+                                        </button>
+
+                                        <button class="btn btn-secondary btn-sm"
+                                                @onclick="CancelEdit"
+                                                disabled="@isSaving">
+                                            Cancel
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-primary btn-sm me-2"
+                                                @onclick="() => StartEdit(category)"
+                                                disabled="@isSaving">
+                                            Edit
+                                        </button>
+
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick="() => RequestDelete(category)"
+                                                disabled="@isSaving">
+                                            Delete
+                                        </button>
+                                    }
+
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+            </div>
 
         </div>
+    </div>
+}
+
+@* Delete confirmation *@
+@if (categoryToDelete is not null)
+{
+    <div class="alert alert-warning mt-3" role="alert">
+
+        <p>
+            Are you sure you want to delete
+            <strong>@categoryToDelete.Name</strong>?
+        </p>
+
+        <button class="btn btn-danger btn-sm me-2"
+                @onclick="ConfirmDelete"
+                disabled="@isSaving">
+            Yes, delete
+        </button>
+
+        <button class="btn btn-secondary btn-sm"
+                @onclick="CancelDelete"
+                disabled="@isSaving">
+            Cancel
+        </button>
+
     </div>
 }
 
@@ -102,40 +178,57 @@ else
     private List<Category> categories = new();
 
     private string newCategoryName = string.Empty;
+    private string editingCategoryName = string.Empty;
 
     private string? userId;
-
     private string? errorMessage;
 
-    private bool isLoading = true;
+    private int? editingCategoryId;
+    private Category? categoryToDelete;
 
+    private bool isLoading = true;
     private bool isSaving = false;
 
 
+    // Load categories for the signed-in user.
     protected override async Task OnInitializedAsync()
     {
-        var authState =
-            await AuthenticationStateProvider.GetAuthenticationStateAsync();
-
-        userId = UserManager.GetUserId(authState.User);
-
-        if (userId is not null)
+        try
         {
-            categories =
-                await CategoryService.GetCategoriesAsync(userId);
-        }
+            var authState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
 
-        isLoading = false;
+            userId = UserManager.GetUserId(authState.User);
+
+            if (userId is not null)
+            {
+                await LoadCategories();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
 
+    private async Task LoadCategories()
+    {
+        if (userId is null)
+            return;
+
+        categories =
+            await CategoryService.GetCategoriesAsync(userId);
+    }
+
+
+    // CREATE
     private async Task AddCategory()
     {
         if (userId is null || isSaving)
             return;
 
         errorMessage = null;
-
         isSaving = true;
 
         try
@@ -146,12 +239,122 @@ else
 
             newCategoryName = string.Empty;
 
-            categories =
-                await CategoryService.GetCategoriesAsync(userId);
+            await LoadCategories();
         }
         catch (ArgumentException ex)
         {
             errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    // EDIT
+    private void StartEdit(Category category)
+    {
+        errorMessage = null;
+
+        categoryToDelete = null;
+
+        editingCategoryId = category.Id;
+        editingCategoryName = category.Name;
+    }
+
+
+    private void CancelEdit()
+    {
+        editingCategoryId = null;
+        editingCategoryName = string.Empty;
+        errorMessage = null;
+    }
+
+
+    private async Task SaveEdit()
+    {
+        if (userId is null ||
+            editingCategoryId is null ||
+            isSaving)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        isSaving = true;
+
+        try
+        {
+            await CategoryService.UpdateCategoryAsync(
+                editingCategoryId.Value,
+                editingCategoryName,
+                userId);
+
+            CancelEdit();
+
+            await LoadCategories();
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    // DELETE
+    private void RequestDelete(Category category)
+    {
+        errorMessage = null;
+
+        editingCategoryId = null;
+        editingCategoryName = string.Empty;
+
+        categoryToDelete = category;
+    }
+
+
+    private void CancelDelete()
+    {
+        categoryToDelete = null;
+    }
+
+
+    private async Task ConfirmDelete()
+    {
+        if (userId is null ||
+            categoryToDelete is null ||
+            isSaving)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        isSaving = true;
+
+        try
+        {
+            await CategoryService.DeleteCategoryAsync(
+                categoryToDelete.Id,
+                userId);
+
+            categoryToDelete = null;
+
+            await LoadCategories();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+
+            categoryToDelete = null;
         }
         finally
         {

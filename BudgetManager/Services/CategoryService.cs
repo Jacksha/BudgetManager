@@ -55,5 +55,67 @@ namespace BudgetManager.Services
 
             await context.SaveChangesAsync();
         }
+
+        public async Task UpdateCategoryAsync(
+            int categoryId,
+            string name,
+            string userId)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Category name cannot be empty.");
+
+            name = name.Trim();
+
+            if (name.Length > 35)
+                throw new ArgumentException(
+                    "Category name cannot exceed 35 characters.");
+
+            await using var context =
+                await _contextFactory.CreateDbContextAsync();
+
+            var category = await context.Categories
+                .FirstOrDefaultAsync(c =>
+                    c.Id == categoryId &&
+                    c.ApplicationUserId == userId);
+
+            if (category is null)
+                throw new InvalidOperationException("Category not found.");
+
+            category.Name = name;
+
+            await context.SaveChangesAsync();
+        }
+
+        public async Task DeleteCategoryAsync(
+            int categoryId,
+            string userId)
+        {
+            await using var context =
+                await _contextFactory.CreateDbContextAsync();
+
+            var category = await context.Categories
+                .FirstOrDefaultAsync(c =>
+                    c.Id == categoryId &&
+                    c.ApplicationUserId == userId);
+
+            if (category is null)
+                throw new InvalidOperationException("Category not found.");
+
+            var hasTransactions = await context.Transactions
+                .AnyAsync(t => t.CategoryId == categoryId);
+
+            var hasBudgets = await context.Budgets
+                .AnyAsync(b => b.CategoryId == categoryId);
+
+            if (hasTransactions || hasBudgets)
+            {
+                throw new InvalidOperationException(
+                    "Cannot delete a category that has transactions or budgets.");
+            }
+
+            context.Categories.Remove(category);
+
+            await context.SaveChangesAsync();
+        }
     }
 }
