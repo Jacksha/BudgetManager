@@ -32,15 +32,16 @@ else if (!string.IsNullOrEmpty(errorMessage))
 }
 else
 {
-    <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center justify-content-center gap-3 mb-4">
 
         <button class="btn btn-outline-secondary"
                 @onclick="PreviousMonth"
-                disabled="@(isLoading || selectedDate.Year == 1 && selectedDate.Month == 1)">
-            &lt;
+                disabled="@(isLoading || selectedDate.Year == 1 && selectedDate.Month == 1)"
+                aria-label="Previous month">
+            <i class="bi bi-chevron-left"></i>
         </button>
 
-        <h5 class="mb-0">
+        <h5 class="mb-0 text-center">
             @selectedDate.ToString(
             "MMMM yyyy",
                 CultureInfo.GetCultureInfo("en-US"))
@@ -48,8 +49,9 @@ else
 
         <button class="btn btn-outline-secondary"
                 @onclick="NextMonth"
-                disabled="@(isLoading || selectedDate.Year == 9998 && selectedDate.Month == 12)">
-            &gt;
+                disabled="@(isLoading || selectedDate.Year == 9998 && selectedDate.Month == 12)"
+                aria-label="Next month">
+            <i class="bi bi-chevron-right"></i>
         </button>
 
     </div>
