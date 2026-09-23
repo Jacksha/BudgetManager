@@ -1,15 +1,15 @@
-Budget Manager
+# Budget Manager
 Under development
 
 Web application for personal finance management, developed as part of a final thesis project at VSITE.
 
-Overview
+## Overview
 
 Budget Manager is a web application designed to help users track income and expenses, organize financial transactions into categories, and manage personal budgets.
 
 The application provides a responsive interface suitable for desktop and mobile browsers.
 
-Technologies
+## Technologies
 
 C# / .NET 8
 
@@ -23,7 +23,7 @@ Microsoft SQL Server
 
 Bootstrap
 
-Implemented features
+## Implemented features
 
 User registration and authentication
 
@@ -37,7 +37,7 @@ Transaction creation, editing and deletion
 
 Protection of user-specific financial data
 
-Planned features
+## Planned features
 
 Monthly budgets and spending limits
 
@@ -53,7 +53,7 @@ Multi-currency support
 
 Deployment to a web-hosting or cloud environment
 
-Project structure
+## Project structure
 
 Components – Blazor pages and application layout
 
@@ -63,11 +63,11 @@ Models – application entities
 
 Services – business logic and database operations
 
-Development status
+## Development status
 
 The project is currently under active development. Core authentication and transaction management functionalities have been implemented.
 
-Author
+## Author
 
 Dario Jakovljević
 
