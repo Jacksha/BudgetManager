@@ -1,0 +1,139 @@
+﻿@page "/dashboard"
+@attribute [Authorize]
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using BudgetManager.Data
+@using BudgetManager.Services
+
+@inject DashboardService DashboardService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Dashboard - Budget Manager</PageTitle>
+
+<h3>Dashboard</h3>
+
+<p class="text-muted">
+    Overview of your personal finances.
+</p>
+
+@if (isLoading)
+{
+    <p>Loading dashboard...</p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+else
+{
+    <h5 class="mb-5">
+        @selectedDate.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("en-US"))
+    </h5>
+
+    <div class="row g-4">
+
+        @* Income *@
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card h-100 border-success">
+                <div class="card-body">
+
+                    <h6 class="card-title text-muted">
+                        Total Income
+                    </h6>
+
+                    <h3 class="text-success">
+                        @summary.TotalIncome.ToString("N2") EUR
+                    </h3>
+
+                </div>
+            </div>
+        </div>
+
+        @* Expenses *@
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card h-100 border-danger">
+                <div class="card-body">
+
+                    <h6 class="card-title text-muted">
+                        Total Expenses
+                    </h6>
+
+                    <h3 class="text-danger">
+                        @summary.TotalExpenses.ToString("N2") EUR
+                    </h3>
+
+                </div>
+            </div>
+        </div>
+
+        @* Balance *@
+        <div class="col-12 col-md-12 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+
+                    <h6 class="card-title text-muted">
+                        Balance
+                    </h6>
+
+                    <h3 class="@(summary.Balance >= 0
+                                                ? "text-success"
+                                                : "text-danger")">
+
+                    @summary.Balance.ToString("N2") EUR
+
+                    </h3>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+}
+
+@code {
+
+    private DashboardSummary summary = new();
+
+    private DateTime selectedDate = DateTime.Today;
+
+    private bool isLoading = true;
+
+    private string? errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var userId = UserManager.GetUserId(authState.User);
+
+            if (userId is null)
+            {
+                errorMessage = "Unable to identify the current user.";
+                return;
+            }
+
+            summary = await DashboardService.GetMonthlySummaryAsync(
+                userId,
+                selectedDate.Year,
+                selectedDate.Month);
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load dashboard data.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
