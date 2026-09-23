@@ -23,7 +23,7 @@ namespace BudgetManager.Services
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("Invalid user.");
 
-            if (year < 1 || year > 9999 || month < 1 || month > 12)
+            if (year < 1 || year > 9998 || month < 1 || month > 12)
                 throw new ArgumentException("Invalid month or year.");
 
             var startDate = new DateTime(year, month, 1);

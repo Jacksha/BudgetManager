@@ -32,9 +32,27 @@ else if (!string.IsNullOrEmpty(errorMessage))
 }
 else
 {
-    <h5 class="mb-5">
-        @selectedDate.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("en-US"))
-    </h5>
+    <div class="d-flex align-items-center justify-content-between mb-4">
+
+        <button class="btn btn-outline-secondary"
+                @onclick="PreviousMonth"
+                disabled="@(isLoading || selectedDate.Year == 1 && selectedDate.Month == 1)">
+            &lt;
+        </button>
+
+        <h5 class="mb-0">
+            @selectedDate.ToString(
+            "MMMM yyyy",
+                CultureInfo.GetCultureInfo("en-US"))
+        </h5>
+
+        <button class="btn btn-outline-secondary"
+                @onclick="NextMonth"
+                disabled="@(isLoading || selectedDate.Year == 9998 && selectedDate.Month == 12)">
+            &gt;
+        </button>
+
+    </div>
 
     <div class="row g-4">
 
@@ -96,26 +114,38 @@ else
     </div>
 }
 
+
 @code {
 
     private DashboardSummary summary = new();
 
-    private DateTime selectedDate = DateTime.Today;
+    private DateTime selectedDate =
+        new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    private string? userId;
+    private string? errorMessage;
 
     private bool isLoading = true;
-
-    private string? errorMessage;
 
 
     protected override async Task OnInitializedAsync()
     {
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        userId = UserManager.GetUserId(authState.User);
+
+        await LoadSummary();
+    }
+
+
+    private async Task LoadSummary()
+    {
+        errorMessage = null;
+        isLoading = true;
+
         try
         {
-            var authState =
-                await AuthenticationStateProvider.GetAuthenticationStateAsync();
-
-            var userId = UserManager.GetUserId(authState.User);
-
             if (userId is null)
             {
                 errorMessage = "Unable to identify the current user.";
@@ -136,4 +166,27 @@ else
             isLoading = false;
         }
     }
+
+
+    private async Task PreviousMonth()
+    {
+        if (isLoading || selectedDate.Year == 1 && selectedDate.Month == 1)
+            return;
+
+        selectedDate = selectedDate.AddMonths(-1);
+
+        await LoadSummary();
+    }
+
+
+    private async Task NextMonth()
+    {
+        if (isLoading || selectedDate.Year == 9998 && selectedDate.Month == 12)
+            return;
+
+        selectedDate = selectedDate.AddMonths(1);
+
+        await LoadSummary();
+    }
+
 }
