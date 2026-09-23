@@ -38,6 +38,7 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<DashboardService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
