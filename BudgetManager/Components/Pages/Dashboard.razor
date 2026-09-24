@@ -114,12 +114,71 @@ else
         </div>
 
     </div>
+
+    @* Expenses by category *@
+    <div class="card mt-4">
+
+        <div class="card-body">
+
+            <h5 class="card-title mb-4">
+                Expenses by category
+            </h5>
+
+            @if (expensesByCategory.Count == 0)
+                {
+                    <p class="text-muted mb-0">
+                        No expenses recorded for this month.
+                    </p>
+                }
+                else
+                {
+                    @foreach (var category in expensesByCategory)
+                    {
+                        var percentage = summary.TotalExpenses > 0
+                        ? category.TotalAmount / summary.TotalExpenses * 100m
+                        : 0m;
+
+                        <div class="mb-4" @key="category.CategoryId">
+
+                            <div class="d-flex justify-content-between mb-2">
+
+                                <span class="fw-semibold">
+                                    @category.CategoryName
+                                </span>
+
+                                <span>
+                                    @category.TotalAmount.ToString("N2") EUR
+                                    (@percentage.ToString("N1")%)
+                                </span>
+
+                            </div>
+
+                            <div class="progress"
+                                 role="progressbar"
+                                 aria-label="@category.CategoryName"
+                                 aria-valuenow="@percentage.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+
+                                <div class="progress-bar"
+                                     style="@($"width: {percentage.ToString(System.Globalization.CultureInfo.InvariantCulture)}%;")">
+                                </div>
+
+                            </div>
+
+                        </div>
+                    }
+                }
+        </div>
+
+    </div>
 }
 
 
 @code {
 
     private DashboardSummary summary = new();
+    private List<CategoryExpenseSummary> expensesByCategory = new();
 
     private DateTime selectedDate =
         new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
@@ -158,6 +217,12 @@ else
                 userId,
                 selectedDate.Year,
                 selectedDate.Month);
+
+            expensesByCategory =
+                await DashboardService.GetExpensesByCategoryAsync(
+                    userId,
+                    selectedDate.Year,
+                    selectedDate.Month);
         }
         catch (Exception)
         {
