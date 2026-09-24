@@ -195,6 +195,86 @@ else
         </div>
 
     </div>
+
+    @* Expense distribution chart *@
+    <div class="card mt-4 mb-4">
+
+        <div class="card-body">
+
+            <h5 class="card-title mb-4">
+                Expense distribution
+            </h5>
+
+            @if (expensesByCategory.Count == 0)
+            {
+                <p class="text-muted mb-0">
+                    No expenses recorded for this month.
+                </p>
+            }
+            else
+            {
+                <div class="row align-items-center g-4">
+
+                    <div class="col-12 col-md-6">
+
+                        <div class="expense-donut"
+                             style="@BuildPieChartStyle()"
+                             role="img"
+                             aria-label="Monthly expense distribution by category">
+
+                            <div class="expense-donut-center">
+
+                                <small class="text-muted">
+                                    Total expenses
+                                </small>
+
+                                <strong>
+                                    @summary.TotalExpenses.ToString("N2") EUR
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-12 col-md-6">
+
+                        @for (int i = 0; i < expensesByCategory.Count; i++)
+                        {
+                            var category = expensesByCategory[i];
+
+                            var percentage =
+                            category.TotalAmount / summary.TotalExpenses * 100m;
+
+                            <div class="d-flex justify-content-between
+                                                align-items-center mb-3">
+
+                                <div class="d-flex align-items-center gap-2">
+
+                                    <span class="category-color"
+                                          style="@($"background-color: {GetCategoryColor(i)};")">
+                                    </span>
+
+                                    <span>@category.CategoryName</span>
+
+                                </div>
+
+                                <span>
+                                    @percentage.ToString("N1")%
+                                </span>
+
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+            }
+
+        </div>
+
+    </div>
 }
 
 
@@ -202,6 +282,62 @@ else
 
     private DashboardSummary summary = new();
     private List<CategoryExpenseSummary> expensesByCategory = new();
+
+    private readonly string[] chartColors =
+{
+    "#3267ed",
+    "#e69f34",
+    "#299d83",
+    "#8b66c6",
+    "#dc5b68",
+    "#26a7c4",
+    "#8a9b36",
+    "#a16b4b"
+};
+
+    private string GetCategoryColor(int index)
+    {
+        return chartColors[index % chartColors.Length];
+    }
+
+    private string BuildPieChartStyle()
+    {
+        if (summary.TotalExpenses <= 0 ||
+            expensesByCategory.Count == 0)
+        {
+            return "background: #e9ecef;";
+        }
+
+        var segments = new List<string>();
+        decimal start = 0m;
+
+        for (int i = 0; i < expensesByCategory.Count; i++)
+        {
+            var category = expensesByCategory[i];
+
+            decimal end = start +
+                category.TotalAmount / summary.TotalExpenses * 100m;
+
+            // Ensure the last segment closes the circle.
+            if (i == expensesByCategory.Count - 1)
+            {
+                end = 100m;
+            }
+
+            string startValue =
+                start.ToString(CultureInfo.InvariantCulture);
+
+            string endValue =
+                end.ToString(CultureInfo.InvariantCulture);
+
+            segments.Add(
+                $"{GetCategoryColor(i)} {startValue}% {endValue}%");
+
+            start = end;
+        }
+
+        return $"background: conic-gradient({string.Join(", ", segments)});";
+    }
 
     private DateTime selectedDate =
         new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);

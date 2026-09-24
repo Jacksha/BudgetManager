@@ -52,7 +52,6 @@ h1:focus {
 
 
 /* Dashboard category progress animation */
-
 .category-progress {
     transform-origin: left center;
     animation: fillCategoryProgress 0.8s ease-out both;
@@ -73,4 +72,41 @@ h1:focus {
     .category-progress {
         animation: none;
     }
+}
+
+
+/* Dashboard donut chart */
+.expense-donut {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    position: relative;
+    margin: 0 auto;
+}
+
+.expense-donut::after {
+    content: "";
+    position: absolute;
+    inset: 45px;
+    border-radius: 50%;
+    background-color: white;
+}
+
+.expense-donut-center {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.category-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
 }
