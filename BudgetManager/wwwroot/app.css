@@ -76,6 +76,13 @@ h1:focus {
 
 
 /* Dashboard donut chart */
+
+@property --donut-progress {
+    syntax: "<percentage>";
+    initial-value: 0%;
+    inherits: false;
+}
+
 .expense-donut {
     width: 220px;
     height: 220px;
@@ -84,12 +91,42 @@ h1:focus {
     margin: 0 auto;
 }
 
+/* Animated colored segments */
+.expense-donut-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    -webkit-mask: conic-gradient( #000 0% var(--donut-progress), transparent var(--donut-progress) 100% );
+    mask: conic-gradient( #000 0% var(--donut-progress), transparent var(--donut-progress) 100% );
+    animation: revealDonut 1.2s ease-out both;
+}
+
+/* White center that creates the donut hole */
 .expense-donut::after {
     content: "";
     position: absolute;
     inset: 45px;
     border-radius: 50%;
     background-color: white;
+}
+
+/* Animation */
+@keyframes revealDonut {
+    from {
+        --donut-progress: 0%;
+    }
+
+    to {
+        --donut-progress: 100%;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .expense-donut-fill {
+        animation: none;
+        --donut-progress: 100%;
+    }
 }
 
 .expense-donut-center {

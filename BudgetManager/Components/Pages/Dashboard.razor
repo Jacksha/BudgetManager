@@ -218,10 +218,16 @@ else
                     <div class="col-12 col-md-6">
 
                         <div class="expense-donut"
-                             style="@BuildPieChartStyle()"
+                             @key="(selectedDate.Year, selectedDate.Month)"
                              role="img"
                              aria-label="Monthly expense distribution by category">
 
+                            @* Animated colored segments *@
+                            <div class="expense-donut-fill"
+                                 style="@BuildPieChartStyle()">
+                            </div>
+
+                            @* Center text *@
                             <div class="expense-donut-center">
 
                                 <small class="text-muted">
