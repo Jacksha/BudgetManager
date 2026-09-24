@@ -38,7 +38,18 @@ else
                 @onclick="PreviousMonth"
                 disabled="@(isLoading || selectedDate.Year == 1 && selectedDate.Month == 1)"
                 aria-label="Previous month">
-            <i class="bi bi-chevron-left"></i>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 width="18"
+                 height="18"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round"
+                 stroke-linejoin="round"
+                 aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+            </svg>
         </button>
 
         <h5 class="mb-0 text-center">
@@ -51,7 +62,18 @@ else
                 @onclick="NextMonth"
                 disabled="@(isLoading || selectedDate.Year == 9998 && selectedDate.Month == 12)"
                 aria-label="Next month">
-            <i class="bi bi-chevron-right"></i>
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 width="18"
+                 height="18"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round"
+                 stroke-linejoin="round"
+                 aria-hidden="true">
+                <path d="m9 18 6-6-6-6" />
+            </svg>
         </button>
 
     </div>
@@ -138,7 +160,8 @@ else
                         ? category.TotalAmount / summary.TotalExpenses * 100m
                         : 0m;
 
-                        <div class="mb-4" @key="category.CategoryId">
+                        <div class="mb-4"
+                             @key="(selectedDate.Year, selectedDate.Month, category.CategoryId)">
 
                             <div class="d-flex justify-content-between mb-2">
 
@@ -160,8 +183,8 @@ else
                                  aria-valuemin="0"
                                  aria-valuemax="100">
 
-                                <div class="progress-bar"
-                                     style="@($"width: {percentage.ToString(System.Globalization.CultureInfo.InvariantCulture)}%;")">
+                                <div class="progress-bar category-progress"
+                                     style="@($"width: {percentage.ToString(CultureInfo.InvariantCulture)}%;")">
                                 </div>
 
                             </div>

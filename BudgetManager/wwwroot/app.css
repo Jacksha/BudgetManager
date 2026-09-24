@@ -49,3 +49,28 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+
+/* Dashboard category progress animation */
+
+.category-progress {
+    transform-origin: left center;
+    animation: fillCategoryProgress 0.8s ease-out both;
+}
+
+@keyframes fillCategoryProgress {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* Respect reduced-motion accessibility preferences */
+@media (prefers-reduced-motion: reduce) {
+    .category-progress {
+        animation: none;
+    }
+}
