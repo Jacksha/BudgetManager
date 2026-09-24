@@ -1,0 +1,288 @@
+﻿@page "/budgets"
+@attribute [Authorize]
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using BudgetManager.Data
+@using BudgetManager.Models
+@using BudgetManager.Services
+
+@inject BudgetService BudgetService
+@inject CategoryService CategoryService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Budgets - Budget Manager</PageTitle>
+
+<h3>Budgets</h3>
+
+<p class="text-muted">
+    Set monthly spending limits for your categories.
+</p>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">
+        @successMessage
+    </div>
+}
+
+<div class="d-flex align-items-center justify-content-center gap-3 mb-4">
+
+    <button class="btn btn-outline-secondary"
+            @onclick="PreviousMonth"
+            disabled="@isLoading">
+        &lt;
+    </button>
+
+    <h5 class="mb-0">
+        @selectedDate.ToString(
+        "MMMM yyyy",
+                CultureInfo.GetCultureInfo("en-US"))
+    </h5>
+
+    <button class="btn btn-outline-secondary"
+            @onclick="NextMonth"
+            disabled="@isLoading">
+        &gt;
+    </button>
+
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+
+        <h5 class="card-title">
+            Add budget
+        </h5>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">Category</label>
+
+                <select class="form-select"
+                        @bind="selectedCategoryId"
+                        disabled="@isSaving">
+
+                    <option value="0">
+                        -- Select category --
+                    </option>
+
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <label class="form-label">
+                    Monthly limit (EUR)
+                </label>
+
+                <input type="number"
+                       class="form-control"
+                       min="0.01"
+                       step="0.01"
+                       @bind="newLimitAmount"
+                       disabled="@isSaving" />
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-primary"
+                        @onclick="AddBudget"
+                        disabled="@isSaving">
+
+                    @(isSaving ? "Saving..." : "Add budget")
+
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <p>Loading budgets...</p>
+}
+else if (budgets.Count == 0)
+{
+    <div class="alert alert-info">
+        No budgets have been set for this month.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <div class="table-responsive">
+
+                <table class="table table-striped align-middle">
+
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">
+                                Monthly limit
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var budget in budgets)
+                        {
+                            <tr @key="budget.Id">
+
+                                <td>
+                                    @budget.Category?.Name
+                                </td>
+
+                                <td class="text-end fw-semibold">
+                                    @budget.LimitAmount.ToString("N2") EUR
+                                </td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    private List<Budget> budgets = new();
+    private List<Category> categories = new();
+
+    private DateTime selectedDate =
+        new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+
+    private string? userId;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private int selectedCategoryId;
+    private decimal newLimitAmount;
+
+    private bool isLoading = true;
+    private bool isSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        userId = UserManager.GetUserId(authState.User);
+
+        if (userId is not null)
+        {
+            categories =
+                await CategoryService.GetCategoriesAsync(userId);
+
+            await LoadBudgets();
+        }
+
+        isLoading = false;
+    }
+
+    private async Task LoadBudgets()
+    {
+        if (userId is null)
+            return;
+
+        budgets = await BudgetService.GetBudgetsAsync(
+            userId,
+            selectedDate.Year,
+            selectedDate.Month);
+    }
+
+    private async Task AddBudget()
+    {
+        if (userId is null || isSaving)
+            return;
+
+        errorMessage = null;
+        successMessage = null;
+
+        if (selectedCategoryId == 0)
+        {
+            errorMessage = "Please select a category.";
+            return;
+        }
+
+        if (newLimitAmount <= 0)
+        {
+            errorMessage =
+                "Budget limit must be greater than zero.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await BudgetService.AddBudgetAsync(
+                selectedCategoryId,
+                newLimitAmount,
+                selectedDate.Year,
+                selectedDate.Month,
+                userId);
+
+            selectedCategoryId = 0;
+            newLimitAmount = 0;
+
+            await LoadBudgets();
+
+            successMessage =
+                "Budget added successfully.";
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task PreviousMonth()
+    {
+        selectedDate = selectedDate.AddMonths(-1);
+
+        await LoadBudgets();
+    }
+
+    private async Task NextMonth()
+    {
+        selectedDate = selectedDate.AddMonths(1);
+
+        await LoadBudgets();
+    }
+}

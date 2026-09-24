@@ -19,7 +19,6 @@ namespace BudgetManager.Data
             base.OnModelCreating(builder);
 
             // CATEGORY
-
             builder.Entity<Category>()
                 .Property(c => c.Name)
                 .HasMaxLength(35)
@@ -32,7 +31,6 @@ namespace BudgetManager.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // TRANSACTION
-
             builder.Entity<Transaction>()
                 .Property(t => t.Description)
                 .HasMaxLength(250)
@@ -68,7 +66,6 @@ namespace BudgetManager.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // BUDGET
-
             builder.Entity<Budget>()
                 .Property(b => b.LimitAmount)
                 .HasPrecision(18, 2);
@@ -86,14 +83,12 @@ namespace BudgetManager.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // APPLICATION USER
-
             builder.Entity<ApplicationUser>()
                 .Property(u => u.BaseCurrency)
                 .HasMaxLength(3)
                 .IsRequired();
 
             // Prevent duplicate monthly budgets for the same category.
-
             builder.Entity<Budget>()
                 .HasIndex(b => new
                 {
