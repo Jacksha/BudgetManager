@@ -8,11 +8,13 @@
 @using BudgetManager.Data
 @using BudgetManager.Models
 @using BudgetManager.Services
+@using Microsoft.JSInterop
 
 @inject BudgetService BudgetService
 @inject CategoryService CategoryService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Budgets - Budget Manager</PageTitle>
 
@@ -324,6 +326,7 @@ else
 
     private int? editingBudgetId;
     private Budget? budgetToDelete;
+    private bool scrollToForm;
 
     private bool isLoading = true;
     private bool isSaving;
@@ -469,6 +472,7 @@ else
         successMessage = null;
 
         editingBudgetId = budget.Id;
+        scrollToForm = true;
 
         selectedCategoryId = budget.CategoryId;
         limitAmount = budget.LimitAmount;
@@ -543,5 +547,21 @@ else
         selectedCategoryId = 0;
         limitAmount = 0m;
         isRecurring = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (scrollToForm)
+        {
+            scrollToForm = false;
+
+            await JS.InvokeVoidAsync(
+                "window.scrollTo",
+                new
+                {
+                    top = 0,
+                    behavior = "smooth"
+                });
+        }
     }
 }

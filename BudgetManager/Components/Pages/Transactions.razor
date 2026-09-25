@@ -7,11 +7,13 @@
 @using BudgetManager.Data
 @using BudgetManager.Models
 @using BudgetManager.Services
+@using Microsoft.JSInterop
 
 @inject TransactionService TransactionService
 @inject CategoryService CategoryService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Transactions - Budget Manager</PageTitle>
 
@@ -322,6 +324,7 @@ else
     private int selectedCategoryId;
 
     private int? editingTransactionId;
+    private bool scrollToForm;
 
     // Delete transaction
     private Transaction? transactionToDelete;
@@ -451,6 +454,7 @@ else
         newDate = transaction.Date;
         newTransactionType = transaction.Type;
         selectedCategoryId = transaction.CategoryId;
+        scrollToForm = true;
     }
 
     // DELETE
@@ -514,5 +518,21 @@ else
         newDate = DateTime.Today;
         newTransactionType = TransactionType.Expense;
         selectedCategoryId = 0;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (scrollToForm)
+        {
+            scrollToForm = false;
+
+            await JS.InvokeVoidAsync(
+                "window.scrollTo",
+                new
+                {
+                    top = 0,
+                    behavior = "smooth"
+                });
+        }
     }
 }
