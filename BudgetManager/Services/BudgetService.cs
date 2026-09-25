@@ -19,18 +19,53 @@ namespace BudgetManager.Services
             int year,
             int month)
         {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("Invalid user.");
+
+            if (year < 1 || year > 9998 ||
+                month < 1 || month > 12)
+            {
+                throw new ArgumentException("Invalid month or year.");
+            }
+
+            var selectedMonth = new DateTime(year, month, 1);
+
             await using var context =
                 await _contextFactory.CreateDbContextAsync();
 
-            return await context.Budgets
+            var applicableBudgets = await context.Budgets
                 .AsNoTracking()
                 .Include(b => b.Category)
                 .Where(b =>
                     b.ApplicationUserId == userId &&
-                    b.Year == year &&
-                    b.Month == month)
-                .OrderBy(b => b.Category!.Name)
+
+                    // Budget must have started by the selected month.
+                    (
+                        b.Year < year ||
+                        (b.Year == year && b.Month <= month)
+                    ) &&
+
+                    // One-time budgets apply only to their own month.
+                    (
+                        (b.IsRecurring &&
+                            (b.EndDate == null ||
+                                b.EndDate > selectedMonth)) ||
+
+                        (!b.IsRecurring &&
+                            b.Year == year &&
+                            b.Month == month)
+                    )
+                )
                 .ToListAsync();
+
+            return applicableBudgets
+                .GroupBy(b => b.CategoryId)
+                .Select(g => g
+                    .OrderByDescending(b => b.Year)
+                    .ThenByDescending(b => b.Month)
+                    .First())
+                .OrderBy(b => b.Category?.Name)
+                .ToList();
         }
 
         public async Task AddBudgetAsync(
@@ -38,7 +73,8 @@ namespace BudgetManager.Services
             decimal limitAmount,
             int year,
             int month,
-            string userId)
+            string userId,
+            bool isRecurring)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("Invalid user.");
@@ -70,12 +106,28 @@ namespace BudgetManager.Services
                 throw new ArgumentException(
                     "Selected category does not exist.");
 
+            var selectedMonth = new DateTime(year, month, 1);
+
             var budgetExists = await context.Budgets
                 .AnyAsync(b =>
                     b.ApplicationUserId == userId &&
                     b.CategoryId == categoryId &&
-                    b.Year == year &&
-                    b.Month == month);
+
+                    (
+                        b.Year < year ||
+                        (b.Year == year && b.Month <= month)
+                    ) &&
+
+                    (
+                        (b.IsRecurring &&
+                            (b.EndDate == null ||
+                             b.EndDate > selectedMonth)) ||
+
+                        (!b.IsRecurring &&
+                            b.Year == year &&
+                            b.Month == month)
+                    )
+                );
 
             if (budgetExists)
                 throw new InvalidOperationException(
@@ -87,6 +139,8 @@ namespace BudgetManager.Services
                 LimitAmount = limitAmount,
                 Year = year,
                 Month = month,
+                IsRecurring = isRecurring,
+                EndDate = null,
                 ApplicationUserId = userId
             };
 

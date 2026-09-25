@@ -102,6 +102,30 @@
             </div>
 
             <div class="col-12">
+
+                <div class="form-check">
+
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="repeatBudget"
+                           @bind="isRecurring"
+                           disabled="@isSaving" />
+
+                    <label class="form-check-label"
+                           for="repeatBudget">
+                        Repeat every month
+                    </label>
+
+                </div>
+
+                <small class="text-muted">
+                    When enabled, this limit applies to future months
+                    until you change or stop it.
+                </small>
+
+            </div>
+
+            <div class="col-12">
                 <button class="btn btn-primary"
                         @onclick="AddBudget"
                         disabled="@isSaving">
@@ -138,6 +162,7 @@ else
                     <thead>
                         <tr>
                             <th>Category</th>
+                            <th>Type</th>
                             <th class="text-end">
                                 Monthly limit
                             </th>
@@ -153,7 +178,20 @@ else
                                 <td>
                                     @budget.Category?.Name
                                 </td>
-
+                                <td>
+                                    @if (budget.IsRecurring)
+                                    {
+                                        <span class="badge bg-primary">
+                                            Recurring
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">
+                                            One-time
+                                        </span>
+                                    }
+                                </td>
                                 <td class="text-end fw-semibold">
                                     @budget.LimitAmount.ToString("N2") EUR
                                 </td>
@@ -185,6 +223,7 @@ else
 
     private int selectedCategoryId;
     private decimal newLimitAmount;
+    private bool isRecurring = true;
 
     private bool isLoading = true;
     private bool isSaving;
@@ -248,10 +287,12 @@ else
                 newLimitAmount,
                 selectedDate.Year,
                 selectedDate.Month,
-                userId);
+                userId,
+                isRecurring);
 
             selectedCategoryId = 0;
             newLimitAmount = 0;
+            isRecurring = true;
 
             await LoadBudgets();
 
@@ -274,6 +315,10 @@ else
 
     private async Task PreviousMonth()
     {
+        if (isLoading ||
+            (selectedDate.Year == 1 && selectedDate.Month == 1))
+            return;
+
         selectedDate = selectedDate.AddMonths(-1);
 
         await LoadBudgets();
@@ -281,6 +326,10 @@ else
 
     private async Task NextMonth()
     {
+        if (isLoading ||
+            (selectedDate.Year == 9998 && selectedDate.Month == 12))
+            return;
+
         selectedDate = selectedDate.AddMonths(1);
 
         await LoadBudgets();
