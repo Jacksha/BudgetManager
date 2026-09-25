@@ -243,5 +243,82 @@ namespace BudgetManager.Services
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
         }
+
+        public async Task DeleteBudgetAsync(
+            int budgetId,
+            int year,
+            int month,
+            string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("Invalid user.");
+
+            if (year < 1 || year > 9998 ||
+                month < 1 || month > 12)
+            {
+                throw new ArgumentException("Invalid month or year.");
+            }
+
+            var selectedMonth = new DateTime(year, month, 1);
+
+            await using var context =
+                await _contextFactory.CreateDbContextAsync();
+
+            var budget = await context.Budgets
+                .FirstOrDefaultAsync(b =>
+                    b.Id == budgetId &&
+                    b.ApplicationUserId == userId);
+
+            if (budget is null)
+                throw new InvalidOperationException("Budget not found.");
+
+            var startMonth = new DateTime(
+                budget.Year,
+                budget.Month,
+                1);
+
+            // Verify that this budget applies to the selected month.
+            if (startMonth > selectedMonth ||
+                (budget.IsRecurring &&
+                    budget.EndDate != null &&
+                    budget.EndDate <= selectedMonth) ||
+                (!budget.IsRecurring && startMonth != selectedMonth))
+            {
+                throw new InvalidOperationException(
+                    "Budget is not applicable to the selected month.");
+            }
+
+            // A one-time budget can simply be deleted.
+            if (!budget.IsRecurring)
+            {
+                context.Budgets.Remove(budget);
+
+                await context.SaveChangesAsync();
+                return;
+            }
+
+            // Remove all rules starting from the selected month.
+            // This also removes previously scheduled future changes.
+            var futureBudgets = await context.Budgets
+                .Where(b =>
+                    b.ApplicationUserId == userId &&
+                    b.CategoryId == budget.CategoryId &&
+                    (
+                        b.Year > year ||
+                        (b.Year == year && b.Month >= month)
+                    ))
+                .ToListAsync();
+
+            context.Budgets.RemoveRange(futureBudgets);
+
+            // Preserve previous months if the recurring rule
+            // started before the selected month.
+            if (startMonth < selectedMonth)
+            {
+                budget.EndDate = selectedMonth;
+            }
+
+            await context.SaveChangesAsync();
+        }
     }
 }

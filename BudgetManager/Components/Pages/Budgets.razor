@@ -197,11 +197,21 @@ else
                                     @budget.LimitAmount.ToString("N2") EUR
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-outline-primary btn-sm"
+
+                                    <button class="btn btn-outline-primary btn-sm me-2"
                                             @onclick="() => StartEdit(budget)"
                                             disabled="@isSaving">
                                         Edit
                                     </button>
+
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            @onclick="() => RequestDelete(budget)"
+                                            disabled="@isSaving">
+
+                                        @(budget.IsRecurring ? "Stop recurring" : "Delete")
+
+                                    </button>
+
                                 </td>
 
                             </tr>
@@ -214,6 +224,63 @@ else
             </div>
 
         </div>
+    </div>
+}
+
+
+@* Delete confirmation *@
+@if (budgetToDelete is not null)
+{
+    <div class="alert alert-warning mt-4" role="alert">
+
+        <h6>
+            @(budgetToDelete.IsRecurring
+                    ? "Stop recurring budget?"
+                    : "Delete budget?")
+    </h6>
+
+        <p>
+            Category:
+            <strong>
+                @budgetToDelete.Category?.Name
+            </strong>
+        </p>
+
+    @if (budgetToDelete.IsRecurring)
+        {
+            <p>
+                This will stop the budget from
+                @selectedDate.ToString("MMMM yyyy",
+                CultureInfo.GetCultureInfo("en-US"))
+        onward.
+        Previous months will be preserved.
+        Any scheduled future budgets for this category
+        will also be removed.
+    </p>
+        }
+        else
+        {
+            <p>
+                This one-time budget will be permanently deleted.
+            </p>
+        }
+
+        <button class="btn btn-danger btn-sm me-2"
+                @onclick="ConfirmDelete"
+                disabled="@isSaving">
+
+            @(isSaving ? "Processing..." : "Confirm")
+
+        </button>
+
+        <button class="btn btn-secondary btn-sm"
+                @onclick="CancelDelete"
+                disabled="@isSaving">
+
+            Cancel
+
+        </button>
+
     </div>
 }
 
@@ -280,6 +347,7 @@ else
     private int? editingBudgetId;
     private string editingCategoryName = string.Empty;
     private decimal editingLimitAmount;
+    private Budget? budgetToDelete;
 
     private bool isLoading = true;
     private bool isSaving;
@@ -376,6 +444,7 @@ else
             return;
 
         CancelEdit();
+        CancelDelete();
         errorMessage = null;
         successMessage = null;
 
@@ -391,6 +460,7 @@ else
             return;
 
         CancelEdit();
+        CancelDelete();
         errorMessage = null;
         successMessage = null;
 
@@ -401,6 +471,7 @@ else
 
     private void StartEdit(Budget budget)
     {
+        CancelDelete();
         errorMessage = null;
         successMessage = null;
 
@@ -443,6 +514,68 @@ else
             await LoadBudgets();
 
             successMessage = "Budget updated successfully.";
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private void RequestDelete(Budget budget)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        // Close the edit form.
+        CancelEdit();
+
+        budgetToDelete = budget;
+    }
+
+    private void CancelDelete()
+    {
+        budgetToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (userId is null ||
+            budgetToDelete is null ||
+            isSaving)
+        {
+            return;
+        }
+
+        errorMessage = null;
+        successMessage = null;
+        isSaving = true;
+
+        try
+        {
+            bool wasRecurring = budgetToDelete.IsRecurring;
+
+            await BudgetService.DeleteBudgetAsync(
+                budgetToDelete.Id,
+                selectedDate.Year,
+                selectedDate.Month,
+                userId);
+
+            CancelDelete();
+
+            await LoadBudgets();
+
+            successMessage = wasRecurring
+                ? "Recurring budget stopped successfully."
+                : "Budget deleted successfully.";
         }
         catch (ArgumentException ex)
         {
