@@ -190,8 +190,9 @@ else
                                     {
                                         <span class="badge bg-info text-dark">
                                             Every month · Ends
-                                            @budget.EndDate.Value.AddMonths(-1)
-                                            .ToString("MMMM yyyy", CultureInfo.GetCultureInfo("en-US"))
+                                            @(budget.EndDate.Value
+                                            .AddMonths(-1)
+                                            .ToString("MMMM yyyy", CultureInfo.GetCultureInfo("en-US")))
                                         </span>
                                     }
                                     else
