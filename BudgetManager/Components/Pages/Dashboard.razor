@@ -7,8 +7,10 @@
 @using Microsoft.AspNetCore.Identity
 @using BudgetManager.Data
 @using BudgetManager.Services
+@using BudgetManager.Models
 
 @inject DashboardService DashboardService
+@inject BudgetService BudgetService
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -137,7 +139,8 @@ else
 
     </div>
 
-    @* Expenses by category *@
+
+    @* Expenses by category and budget comparison *@
     <div class="card mt-4">
 
         <div class="card-body">
@@ -146,52 +149,148 @@ else
                 Expenses by category
             </h5>
 
-            @if (expensesByCategory.Count == 0)
+        @if (expenseOverview.Count == 0)
+            {
+                <p class="text-muted mb-0">
+                    No expenses or budgets recorded for this month.
+                </p>
+            }
+            else
+            {
+                @foreach (var category in expenseOverview)
                 {
-                    <p class="text-muted mb-0">
-                        No expenses recorded for this month.
-                    </p>
-                }
-                else
-                {
-                    @foreach (var category in expensesByCategory)
+                    // Existing calculation:
+                    // category's share of total monthly expenses.
+                    var percentage = summary.TotalExpenses > 0
+                    ? category.TotalAmount / summary.TotalExpenses * 100m
+                    : 0m;
+
+                    // Find the applicable budget for this category.
+                    var budget = monthlyBudgets.FirstOrDefault(b =>
+                    b.CategoryId == category.CategoryId);
+
+                    decimal greenPercentage = 0m;
+                    decimal redPercentage = 0m;
+                    decimal remaining = 0m;
+
+                    if (budget is not null)
                     {
-                        var percentage = summary.TotalExpenses > 0
-                        ? category.TotalAmount / summary.TotalExpenses * 100m
-                        : 0m;
+                        remaining = budget.LimitAmount - category.TotalAmount;
 
-                        <div class="mb-4"
-                             @key="(selectedDate.Year, selectedDate.Month, category.CategoryId)">
+                        // Amount spent within the budget.
+                        var withinBudget = Math.Min(
+                        category.TotalAmount,
+                        budget.LimitAmount);
 
-                            <div class="d-flex justify-content-between mb-2">
+                        // Amount exceeding the budget.
+                        var overBudget = Math.Max(
+                        category.TotalAmount - budget.LimitAmount,
+                        0m);
 
-                                <span class="fw-semibold">
-                                    @category.CategoryName
-                                </span>
+                        if (summary.TotalExpenses > 0)
+                        {
+                            greenPercentage =
+                            withinBudget / summary.TotalExpenses * 100m;
 
-                                <span>
-                                    @category.TotalAmount.ToString("N2") EUR
+                            redPercentage =
+                            overBudget / summary.TotalExpenses * 100m;
+                        }
+                    }
+
+                    <div class="mb-4"
+                         @key="(selectedDate.Year, selectedDate.Month, category.CategoryId)">
+
+                        @* Category name and spending information *@
+                        <div class="d-flex justify-content-between
+                                            align-items-center flex-wrap gap-2 mb-2">
+
+                            <span class="fw-semibold">
+                                @category.CategoryName
+                            </span>
+
+                            <span class="text-end">
+
+                                @category.TotalAmount.ToString("N2") EUR
+
+                                <span class="text-muted">
                                     (@percentage.ToString("N1")%)
                                 </span>
 
+                            </span>
+
+                        </div>
+
+                        @* Budget information *@
+                        @if (budget is not null)
+                        {
+                            <div class="d-flex justify-content-between
+                                                    align-items-center flex-wrap gap-2 mb-2">
+
+                                <small class="text-muted">
+                                    Budget:
+                                    @budget.LimitAmount.ToString("N2") EUR
+                                </small>
+
+                                @if (remaining < 0)
+                                {
+                                    <span class="badge bg-danger">
+                                        @Math.Abs(remaining).ToString("N2") EUR
+                                        over budget
+                                    </span>
+                                }
+                                else if (remaining == 0)
+                                {
+                                    <span class="badge bg-warning text-dark">
+                                        Limit reached
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">
+                                        @remaining.ToString("N2") EUR remaining
+                                    </span>
+                                }
+
                             </div>
+                        }
 
-                            <div class="progress"
-                                 role="progressbar"
-                                 aria-label="@category.CategoryName"
-                                 aria-valuenow="@percentage.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100">
+                        @* Progress bar *@
+                        <div class="progress"
+                             role="progressbar"
+                             aria-label="@($"{category.CategoryName}: {percentage:N1}% of total expenses")"
+                             aria-valuenow="@percentage.ToString(CultureInfo.InvariantCulture)"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
 
+                            @if (budget is null)
+                            {
+                                @* No budget: preserve the existing blue bar. *@
                                 <div class="progress-bar category-progress"
                                      style="@($"width: {percentage.ToString(CultureInfo.InvariantCulture)}%;")">
                                 </div>
+                            }
+                            else
+                            {
+                                @* Spending within budget: green section. *@
+                                <div class="progress-bar bg-success category-progress"
+                                     style="@($"width: {greenPercentage.ToString(CultureInfo.InvariantCulture)}%;")">
+                                </div>
 
-                            </div>
+                                @* Spending over budget: red section. *@
+                                @if (redPercentage > 0)
+                                {
+                                    <div class="progress-bar bg-danger category-progress"
+                                         style="@($"width: {redPercentage.ToString(CultureInfo.InvariantCulture)}%;")">
+                                    </div>
+                                }
+                            }
 
                         </div>
-                    }
+
+                    </div>
                 }
+            }
+
         </div>
 
     </div>
@@ -288,6 +387,9 @@ else
 
     private DashboardSummary summary = new();
     private List<CategoryExpenseSummary> expensesByCategory = new();
+    private List<Budget> monthlyBudgets = new();
+    // For Categore with budget
+    private List<CategoryExpenseSummary> expenseOverview = new();
 
     private readonly string[] chartColors =
 {
@@ -383,11 +485,43 @@ else
                 selectedDate.Year,
                 selectedDate.Month);
 
-            expensesByCategory =
-                await DashboardService.GetExpensesByCategoryAsync(
-                    userId,
-                    selectedDate.Year,
-                    selectedDate.Month);
+            expensesByCategory = await DashboardService.GetExpensesByCategoryAsync(
+                userId,
+                selectedDate.Year,
+                selectedDate.Month);
+
+            monthlyBudgets = await BudgetService.GetBudgetsAsync(
+                userId,
+                selectedDate.Year,
+                selectedDate.Month);
+
+            // Start with categories that have actual expenses.
+            expenseOverview = new List<CategoryExpenseSummary>(
+                expensesByCategory);
+
+            // Also include categories that have a budget,
+            // but no expenses in the selected month.
+            foreach (var budget in monthlyBudgets)
+            {
+                bool categoryExists = expenseOverview.Any(e =>
+                    e.CategoryId == budget.CategoryId);
+
+                if (!categoryExists)
+                {
+                    expenseOverview.Add(new CategoryExpenseSummary
+                    {
+                        CategoryId = budget.CategoryId,
+                        CategoryName = budget.Category?.Name ?? string.Empty,
+                        TotalAmount = 0m
+                    });
+                }
+            }
+
+            // Show categories with higher expenses first.
+            expenseOverview = expenseOverview
+                .OrderByDescending(e => e.TotalAmount)
+                .ThenBy(e => e.CategoryName)
+                .ToList();
         }
         catch (Exception)
         {
