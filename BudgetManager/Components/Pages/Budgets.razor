@@ -180,16 +180,24 @@ else
                                     @budget.Category?.Name
                                 </td>
                                 <td>
-                                    @if (budget.IsRecurring)
+                                    @if (!budget.IsRecurring)
                                     {
-                                        <span class="badge bg-primary">
-                                            Recurring
+                                        <span class="badge bg-secondary">
+                                            One-time
+                                        </span>
+                                    }
+                                    else if (budget.EndDate is not null)
+                                    {
+                                        <span class="badge bg-info text-dark">
+                                            Every month · Ends
+                                            @budget.EndDate.Value.AddMonths(-1)
+                                            .ToString("MMMM yyyy", CultureInfo.GetCultureInfo("en-US"))
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-secondary">
-                                            One-time
+                                        <span class="badge bg-primary">
+                                            Every month
                                         </span>
                                     }
                                 </td>
