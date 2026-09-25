@@ -154,6 +154,62 @@
     </div>
 </div>
 
+@* Delete confirmation *@
+@if (budgetToDelete is not null)
+{
+    <div class="alert alert-warning mt-4" role="alert">
+
+        <h6>
+            @(budgetToDelete.IsRecurring
+                    ? "Stop recurring budget?"
+                    : "Delete budget?")
+    </h6>
+
+        <p>
+            Category:
+            <strong>
+                @budgetToDelete.Category?.Name
+            </strong>
+        </p>
+
+    @if (budgetToDelete.IsRecurring)
+        {
+            <p>
+                This will stop the budget from
+                @selectedDate.ToString("MMMM yyyy",
+                CultureInfo.GetCultureInfo("en-US"))
+        onward.
+        Previous months will be preserved.
+        Any scheduled future budgets for this category
+        will also be removed.
+    </p>
+        }
+        else
+        {
+            <p>
+                This one-time budget will be permanently deleted.
+            </p>
+        }
+
+        <button class="btn btn-danger btn-sm me-2"
+                @onclick="ConfirmDelete"
+                disabled="@isSaving">
+
+            @(isSaving ? "Processing..." : "Confirm")
+
+        </button>
+
+        <button class="btn btn-secondary btn-sm"
+                @onclick="CancelDelete"
+                disabled="@isSaving">
+
+            Cancel
+
+        </button>
+
+    </div>
+}
+
 @if (isLoading)
 {
     <p>Loading budgets...</p>
@@ -247,63 +303,6 @@ else
             </div>
 
         </div>
-    </div>
-}
-
-
-@* Delete confirmation *@
-@if (budgetToDelete is not null)
-{
-    <div class="alert alert-warning mt-4" role="alert">
-
-        <h6>
-            @(budgetToDelete.IsRecurring
-                    ? "Stop recurring budget?"
-                    : "Delete budget?")
-    </h6>
-
-        <p>
-            Category:
-            <strong>
-                @budgetToDelete.Category?.Name
-            </strong>
-        </p>
-
-    @if (budgetToDelete.IsRecurring)
-        {
-            <p>
-                This will stop the budget from
-                @selectedDate.ToString("MMMM yyyy",
-                CultureInfo.GetCultureInfo("en-US"))
-        onward.
-        Previous months will be preserved.
-        Any scheduled future budgets for this category
-        will also be removed.
-    </p>
-        }
-        else
-        {
-            <p>
-                This one-time budget will be permanently deleted.
-            </p>
-        }
-
-        <button class="btn btn-danger btn-sm me-2"
-                @onclick="ConfirmDelete"
-                disabled="@isSaving">
-
-            @(isSaving ? "Processing..." : "Confirm")
-
-        </button>
-
-        <button class="btn btn-secondary btn-sm"
-                @onclick="CancelDelete"
-                disabled="@isSaving">
-
-            Cancel
-
-        </button>
-
     </div>
 }
 

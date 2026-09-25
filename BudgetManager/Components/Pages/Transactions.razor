@@ -39,7 +39,11 @@
 <div class="card mb-4">
     <div class="card-body">
 
-        <h5 class="card-title">Add transaction</h5>
+        <h5 class="card-title">
+            @(editingTransactionId is null
+                        ? "Add transaction"
+                        : "Edit transaction")
+        </h5>
 
         <div class="row g-3">
 
@@ -117,13 +121,30 @@
             </div>
 
             <div class="col-12">
-                <button class="btn btn-primary"
-                        @onclick="AddTransaction"
+
+                <button class="btn @(editingTransactionId is null
+                            ? "btn-primary"
+                            : "btn-success") me-2"
+                        @onclick="SaveTransaction"
                         disabled="@(isSaving || categories.Count == 0)">
 
-                    @(isSaving ? "Saving..." : "Add transaction")
+                    @(isSaving
+                        ? "Saving..."
+                        : editingTransactionId is null
+                            ? "Add transaction"
+                            : "Save changes")
 
                 </button>
+
+                @if (editingTransactionId is not null)
+                {
+                    <button class="btn btn-secondary"
+                            @onclick="ResetForm"
+                            disabled="@isSaving">
+                        Cancel
+                    </button>
+                }
+
             </div>
 
         </div>
@@ -139,6 +160,42 @@
 
     </div>
 </div>
+
+@* Delete confirmation *@
+@if (transactionToDelete is not null)
+{
+    <div class="alert alert-warning mt-4" role="alert">
+
+        <p>
+            Are you sure you want to delete this transaction?
+        </p>
+
+        <p>
+            <strong>
+                @(string.IsNullOrWhiteSpace(transactionToDelete.Description)
+                            ? transactionToDelete.Category?.Name
+                            : transactionToDelete.Description)
+        </strong>
+
+            —
+            @transactionToDelete.Amount.ToString("N2")
+            @transactionToDelete.Currency
+        </p>
+
+        <button class="btn btn-danger me-2"
+                @onclick="ConfirmDelete"
+                disabled="@isSaving">
+            Yes, delete
+        </button>
+
+        <button class="btn btn-secondary"
+                @onclick="CancelDelete"
+                disabled="@isSaving">
+            Cancel
+        </button>
+
+    </div>
+}
 
 @* Transaction list *@
 @if (isLoading)
@@ -243,147 +300,6 @@ else
     </div>
 }
 
-
-@* Edit transaction *@
-@if (editingTransactionId is not null)
-{
-    <div class="card mt-4 mb-5">
-        <div class="card-body">
-
-            <h5 class="card-title">Edit transaction</h5>
-
-            <div class="row g-3">
-
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Type</label>
-
-                    <select class="form-select"
-                            @bind="editingType"
-                            disabled="@isSaving">
-
-                        <option value="@TransactionType.Expense">
-                            Expense
-                        </option>
-
-                        <option value="@TransactionType.Income">
-                            Income
-                        </option>
-
-                    </select>
-                </div>
-
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Amount (EUR)</label>
-
-                    <input type="number"
-                           class="form-control"
-                           min="0.01"
-                           max="9999999999999999.99"
-                           step="0.01"
-                           @bind="editingAmount"
-                           disabled="@isSaving" />
-                </div>
-
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Category</label>
-
-                    <select class="form-select"
-                            @bind="editingCategoryId"
-                            disabled="@isSaving">
-
-                        <option value="0">
-                            -- Select category --
-                        </option>
-
-                        @foreach (var category in categories)
-                        {
-                            <option value="@category.Id">
-                                @category.Name
-                            </option>
-                        }
-
-                    </select>
-                </div>
-
-                <div class="col-12 col-md-6">
-                    <label class="form-label">Date</label>
-
-                    <input type="date"
-                           class="form-control"
-                           @bind="editingDate"
-                           @bind:format="yyyy-MM-dd"
-                           disabled="@isSaving" />
-                </div>
-
-                <div class="col-12">
-                    <label class="form-label">
-                        Description (optional)
-                    </label>
-
-                    <input type="text"
-                           class="form-control"
-                           maxlength="250"
-                           @bind="editingDescription"
-                           @bind:event="oninput"
-                           disabled="@isSaving" />
-                </div>
-
-                <div class="col-12">
-                    <button class="btn btn-success me-2"
-                            @onclick="SaveEdit"
-                            disabled="@isSaving">
-                        Save changes
-                    </button>
-
-                    <button class="btn btn-secondary"
-                            @onclick="CancelEdit"
-                            disabled="@isSaving">
-                        Cancel
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-}
-
-
-@* Delete confirmation *@
-@if (transactionToDelete is not null)
-{
-    <div class="alert alert-warning mt-4" role="alert">
-
-        <p>
-            Are you sure you want to delete this transaction?
-        </p>
-
-        <p>
-            <strong>
-                @(string.IsNullOrWhiteSpace(transactionToDelete.Description)
-                            ? transactionToDelete.Category?.Name
-                            : transactionToDelete.Description)
-        </strong>
-
-            —
-            @transactionToDelete.Amount.ToString("N2")
-            @transactionToDelete.Currency
-        </p>
-
-        <button class="btn btn-danger me-2"
-                @onclick="ConfirmDelete"
-                disabled="@isSaving">
-            Yes, delete
-        </button>
-
-        <button class="btn btn-secondary"
-                @onclick="CancelDelete"
-                disabled="@isSaving">
-            Cancel
-        </button>
-
-    </div>
-}
-
 @code {
 
     private List<Transaction> transactions = new();
@@ -396,24 +312,16 @@ else
     private bool isLoading = true;
     private bool isSaving = false;
 
-    // New transaction form
+    // Shared Add/Edit form
     private string newDescription = string.Empty;
     private decimal newAmount;
     private DateTime newDate = DateTime.Today;
 
-    private TransactionType newTransactionType =
-        TransactionType.Expense;
+    private TransactionType newTransactionType = TransactionType.Expense;
 
     private int selectedCategoryId;
 
-    // Edit transaction
     private int? editingTransactionId;
-
-    private string editingDescription = string.Empty;
-    private decimal editingAmount;
-    private DateTime editingDate = DateTime.Today;
-    private TransactionType editingType = TransactionType.Expense;
-    private int editingCategoryId;
 
     // Delete transaction
     private Transaction? transactionToDelete;
@@ -454,8 +362,8 @@ else
     }
 
 
-    // CREATE
-    private async Task AddTransaction()
+    // CREATE & EDIT
+    private async Task SaveTransaction()
     {
         if (userId is null || isSaving)
             return;
@@ -480,105 +388,39 @@ else
 
         try
         {
-            await TransactionService.AddTransactionAsync(
-                newDescription,
-                newAmount,
-                newDate,
-                newTransactionType,
-                selectedCategoryId,
-                userId);
+            bool wasEditing = editingTransactionId is not null;
 
-            // Reset the form.
-            newDescription = string.Empty;
-            newAmount = 0;
-            newDate = DateTime.Today;
-            selectedCategoryId = 0;
-            newTransactionType = TransactionType.Expense;
+            if (editingTransactionId is null)
+            {
+                // CREATE
+                await TransactionService.AddTransactionAsync(
+                    newDescription,
+                    newAmount,
+                    newDate,
+                    newTransactionType,
+                    selectedCategoryId,
+                    userId);
+            }
+            else
+            {
+                // UPDATE
+                await TransactionService.UpdateTransactionAsync(
+                    editingTransactionId.Value,
+                    newDescription,
+                    newAmount,
+                    newDate,
+                    newTransactionType,
+                    selectedCategoryId,
+                    userId);
+            }
 
-            successMessage = "Transaction added successfully.";
-
-            await LoadData();
-        }
-        catch (ArgumentException ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isSaving = false;
-        }
-    }
-
-
-    // EDIT
-
-    private void StartEdit(Transaction transaction)
-    {
-        errorMessage = null;
-        successMessage = null;
-
-        transactionToDelete = null;
-
-        editingTransactionId = transaction.Id;
-        editingDescription = transaction.Description;
-        editingAmount = transaction.Amount;
-        editingDate = transaction.Date;
-        editingType = transaction.Type;
-        editingCategoryId = transaction.CategoryId;
-    }
-
-    private void CancelEdit()
-    {
-        editingTransactionId = null;
-        editingDescription = string.Empty;
-        editingAmount = 0;
-        editingDate = DateTime.Today;
-        editingType = TransactionType.Expense;
-        editingCategoryId = 0;
-    }
-
-    private async Task SaveEdit()
-    {
-        if (userId is null ||
-            editingTransactionId is null ||
-            isSaving)
-        {
-            return;
-        }
-
-        errorMessage = null;
-        successMessage = null;
-
-        if (editingAmount <= 0)
-        {
-            errorMessage = "Amount must be greater than zero.";
-            return;
-        }
-
-        if (editingCategoryId == 0)
-        {
-            errorMessage = "Please select a category.";
-            return;
-        }
-
-        isSaving = true;
-
-        try
-        {
-            await TransactionService.UpdateTransactionAsync(
-                editingTransactionId.Value,
-                editingDescription,
-                editingAmount,
-                editingDate,
-                editingType,
-                editingCategoryId,
-                userId);
-
-            CancelEdit();
+            ResetForm();
 
             await LoadData();
 
-            successMessage = "Transaction updated successfully.";
+            successMessage = wasEditing
+                ? "Transaction updated successfully."
+                : "Transaction added successfully.";
         }
         catch (ArgumentException ex)
         {
@@ -594,15 +436,30 @@ else
         }
     }
 
+    // EDIT
+    private void StartEdit(Transaction transaction)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        CancelDelete();
+
+        editingTransactionId = transaction.Id;
+
+        newDescription = transaction.Description;
+        newAmount = transaction.Amount;
+        newDate = transaction.Date;
+        newTransactionType = transaction.Type;
+        selectedCategoryId = transaction.CategoryId;
+    }
 
     // DELETE
-
     private void RequestDelete(Transaction transaction)
     {
         errorMessage = null;
         successMessage = null;
 
-        CancelEdit();
+        ResetForm();
 
         transactionToDelete = transaction;
     }
@@ -646,5 +503,16 @@ else
         {
             isSaving = false;
         }
+    }
+
+    private void ResetForm()
+    {
+        editingTransactionId = null;
+
+        newDescription = string.Empty;
+        newAmount = 0m;
+        newDate = DateTime.Today;
+        newTransactionType = TransactionType.Expense;
+        selectedCategoryId = 0;
     }
 }
