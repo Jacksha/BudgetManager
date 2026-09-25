@@ -62,7 +62,7 @@
     <div class="card-body">
 
         <h5 class="card-title">
-            Add budget
+            @(editingBudgetId is null ? "Add budget" : "Edit budget")
         </h5>
 
         <div class="row g-3">
@@ -72,7 +72,7 @@
 
                 <select class="form-select"
                         @bind="selectedCategoryId"
-                        disabled="@isSaving">
+                        disabled="@(isSaving || editingBudgetId is not null)">
 
                     <option value="0">
                         -- Select category --
@@ -97,7 +97,7 @@
                        class="form-control"
                        min="0.01"
                        step="0.01"
-                       @bind="newLimitAmount"
+                       @bind="limitAmount"
                        disabled="@isSaving" />
             </div>
 
@@ -126,13 +126,27 @@
             </div>
 
             <div class="col-12">
-                <button class="btn btn-primary"
-                        @onclick="AddBudget"
+
+                <button class="btn @(editingBudgetId is null ? "btn-primary" : "btn-success") me-2"
+                        @onclick="SaveBudget"
                         disabled="@isSaving">
 
-                    @(isSaving ? "Saving..." : "Add budget")
+                    @(isSaving ? "Saving..." : 
+                        editingBudgetId is null
+                            ? "Add budget" : "Save changes")
 
                 </button>
+
+                @if (editingBudgetId is not null)
+                {
+                    <button class="btn btn-secondary"
+                            @onclick="ResetForm"
+                            disabled="@isSaving">
+                        Cancel
+
+                    </button>
+                }
+
             </div>
 
         </div>
@@ -293,50 +307,6 @@ else
     </div>
 }
 
-@* Edit budget *@
-@if (editingBudgetId is not null)
-{
-    <div class="card mt-4 mb-4">
-        <div class="card-body">
-
-            <h5 class="card-title">
-                Edit budget – @editingCategoryName
-            </h5>
-
-            <p class="text-muted">
-                Changes to an inherited recurring budget
-                take effect from the selected month onward.
-            </p>
-
-            <div class="mb-3">
-                <label class="form-label">
-                    Monthly limit (EUR)
-                </label>
-
-                <input type="number"
-                       class="form-control"
-                       min="0.01"
-                       step="0.01"
-                       @bind="editingLimitAmount"
-                       disabled="@isSaving" />
-            </div>
-
-            <button class="btn btn-success me-2"
-                    @onclick="SaveEdit"
-                    disabled="@isSaving">
-                @(isSaving ? "Saving..." : "Save changes")
-            </button>
-
-            <button class="btn btn-secondary"
-                    @onclick="CancelEdit"
-                    disabled="@isSaving">
-                Cancel
-            </button>
-
-        </div>
-    </div>
-}
-
 @code {
 
     private List<Budget> budgets = new();
@@ -350,12 +320,10 @@ else
     private string? successMessage;
 
     private int selectedCategoryId;
-    private decimal newLimitAmount;
+    private decimal limitAmount;
     private bool isRecurring = true;
 
     private int? editingBudgetId;
-    private string editingCategoryName = string.Empty;
-    private decimal editingLimitAmount;
     private Budget? budgetToDelete;
 
     private bool isLoading = true;
@@ -390,7 +358,7 @@ else
             selectedDate.Month);
     }
 
-    private async Task AddBudget()
+    private async Task SaveBudget()
     {
         if (userId is null || isSaving)
             return;
@@ -404,7 +372,7 @@ else
             return;
         }
 
-        if (newLimitAmount <= 0)
+        if (limitAmount <= 0)
         {
             errorMessage =
                 "Budget limit must be greater than zero.";
@@ -415,22 +383,38 @@ else
 
         try
         {
-            await BudgetService.AddBudgetAsync(
-                selectedCategoryId,
-                newLimitAmount,
-                selectedDate.Year,
-                selectedDate.Month,
-                userId,
-                isRecurring);
+            bool wasEditing = editingBudgetId is not null;
 
-            selectedCategoryId = 0;
-            newLimitAmount = 0;
-            isRecurring = true;
+            if (editingBudgetId is null)
+            {
+                // CREATE
+                await BudgetService.AddBudgetAsync(
+                    selectedCategoryId,
+                    limitAmount,
+                    selectedDate.Year,
+                    selectedDate.Month,
+                    userId,
+                    isRecurring);
+            }
+            else
+            {
+                // UPDATE
+                await BudgetService.UpdateBudgetAsync(
+                    editingBudgetId.Value,
+                    limitAmount,
+                    selectedDate.Year,
+                    selectedDate.Month,
+                    userId,
+                    isRecurring);
+            }
+
+            ResetForm();
 
             await LoadBudgets();
 
-            successMessage =
-                "Budget added successfully.";
+            successMessage = wasEditing
+                ? "Budget updated successfully."
+                : "Budget added successfully.";
         }
         catch (ArgumentException ex)
         {
@@ -452,7 +436,7 @@ else
             (selectedDate.Year == 1 && selectedDate.Month == 1))
             return;
 
-        CancelEdit();
+        ResetForm();
         CancelDelete();
         errorMessage = null;
         successMessage = null;
@@ -468,7 +452,7 @@ else
             (selectedDate.Year == 9998 && selectedDate.Month == 12))
             return;
 
-        CancelEdit();
+        ResetForm();
         CancelDelete();
         errorMessage = null;
         successMessage = null;
@@ -481,63 +465,16 @@ else
     private void StartEdit(Budget budget)
     {
         CancelDelete();
+
         errorMessage = null;
         successMessage = null;
 
         editingBudgetId = budget.Id;
-        editingCategoryName = budget.Category?.Name ?? string.Empty;
-        editingLimitAmount = budget.LimitAmount;
+
+        selectedCategoryId = budget.CategoryId;
+        limitAmount = budget.LimitAmount;
+        isRecurring = budget.IsRecurring;
     }
-
-    private void CancelEdit()
-    {
-        editingBudgetId = null;
-        editingCategoryName = string.Empty;
-        editingLimitAmount = 0m;
-    }
-
-    private async Task SaveEdit()
-    {
-        if (userId is null ||
-            editingBudgetId is null ||
-            isSaving)
-        {
-            return;
-        }
-
-        errorMessage = null;
-        successMessage = null;
-        isSaving = true;
-
-        try
-        {
-            await BudgetService.UpdateBudgetAsync(
-                editingBudgetId.Value,
-                editingLimitAmount,
-                selectedDate.Year,
-                selectedDate.Month,
-                userId);
-
-            CancelEdit();
-
-            await LoadBudgets();
-
-            successMessage = "Budget updated successfully.";
-        }
-        catch (ArgumentException ex)
-        {
-            errorMessage = ex.Message;
-        }
-        catch (InvalidOperationException ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isSaving = false;
-        }
-    }
-
 
     private void RequestDelete(Budget budget)
     {
@@ -545,7 +482,7 @@ else
         successMessage = null;
 
         // Close the edit form.
-        CancelEdit();
+        ResetForm();
 
         budgetToDelete = budget;
     }
@@ -598,5 +535,14 @@ else
         {
             isSaving = false;
         }
+    }
+
+    private void ResetForm()
+    {
+        editingBudgetId = null;
+
+        selectedCategoryId = 0;
+        limitAmount = 0m;
+        isRecurring = true;
     }
 }

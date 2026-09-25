@@ -149,12 +149,14 @@ namespace BudgetManager.Services
             await context.SaveChangesAsync();
         }
 
+
         public async Task UpdateBudgetAsync(
             int budgetId,
             decimal limitAmount,
             int year,
             int month,
-            string userId)
+            string userId,
+            bool isRecurring)
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new ArgumentException("Invalid user.");
@@ -185,8 +187,12 @@ namespace BudgetManager.Services
             if (budget is null)
                 throw new InvalidOperationException("Budget not found.");
 
-            var startMonth = new DateTime(budget.Year, budget.Month, 1);
+            var startMonth = new DateTime(
+                budget.Year,
+                budget.Month,
+                1);
 
+            // Verify that the budget applies to the selected month.
             if (startMonth > selectedMonth ||
                 (budget.IsRecurring &&
                     budget.EndDate != null &&
@@ -197,17 +203,40 @@ namespace BudgetManager.Services
                     "Budget is not applicable to the selected month.");
             }
 
-            // A budget that starts in the selected month can be edited directly.
+            // Do not silently overwrite or reactivate scheduled future rules
+            // when changing the recurrence type.
+            var hasFutureRules = await context.Budgets
+                .AnyAsync(b =>
+                    b.ApplicationUserId == userId &&
+                    b.CategoryId == budget.CategoryId &&
+                    (
+                        b.Year > year ||
+                        (b.Year == year && b.Month > month)
+                    ));
+
+            if (hasFutureRules && isRecurring != budget.IsRecurring)
+            {
+                throw new InvalidOperationException(
+                    "This category has scheduled future budgets. Resolve those rules before changing recurrence.");
+            }
+
+            // CASE 1: The rule starts in the selected month.
             if (startMonth == selectedMonth)
             {
                 budget.LimitAmount = limitAmount;
+                budget.IsRecurring = isRecurring;
+
+                if (!isRecurring)
+                {
+                    // One-time budgets apply only to their own month.
+                    budget.EndDate = null;
+                }
 
                 await context.SaveChangesAsync();
                 return;
             }
 
-            // Only recurring budgets can be inherited from an earlier month.
-            // Check that no separate budget already starts in the selected month.
+            // CASE 2: We are editing an inherited recurring budget.
             var existingBudget = await context.Budgets
                 .AnyAsync(b =>
                     b.ApplicationUserId == userId &&
@@ -224,19 +253,21 @@ namespace BudgetManager.Services
             await using var transaction =
                 await context.Database.BeginTransactionAsync();
 
-            // Keep the old rule for historical months.
+            // Preserve the previous end date, if one exists.
             var previousEndDate = budget.EndDate;
+
+            // The old rule applies only before the selected month.
             budget.EndDate = selectedMonth;
 
-            // Start a new recurring rule with the updated limit.
+            // Create the new rule for the selected month.
             context.Budgets.Add(new Budget
             {
                 CategoryId = budget.CategoryId,
                 LimitAmount = limitAmount,
                 Year = year,
                 Month = month,
-                IsRecurring = true,
-                EndDate = previousEndDate,
+                IsRecurring = isRecurring,
+                EndDate = isRecurring ? previousEndDate : null,
                 ApplicationUserId = userId
             });
 
