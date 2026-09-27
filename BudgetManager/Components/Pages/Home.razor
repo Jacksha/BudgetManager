@@ -2,7 +2,12 @@
 
 @using Microsoft.AspNetCore.Components.Authorization
 
-<PageTitle>Home - Budget Manager</PageTitle>
+<PageTitle>Free Personal Finance & Budget Tracker | Budget Manager</PageTitle>
+
+<HeadContent>
+    <meta name="description"
+          content="Budget Manager is a free online personal finance app. Track income and expenses, plan monthly budgets and monitor your spending with simple financial charts. Currently under development." />
+</HeadContent>
 
 <AuthorizeView>
 
@@ -16,37 +21,172 @@
 
         <div class="container py-5">
 
-            <div class="row justify-content-center">
+            @* Hero section *@
+            <section class="text-center mb-5">
 
-                <div class="col-12 col-md-8 col-lg-6 text-center">
+                <h1 class="display-5 fw-bold mb-4">
+                    Budget Manager
+                </h1>
 
-                    <h1 class="display-5 fw-bold mb-3">
-                        Budget Manager
-                    </h1>
+                <h2 class="h4 text-muted mb-4">
+                    Free Personal Finance & Budget Tracking App
+                </h2>
 
-                    <p class="lead text-muted mb-4">
-                        Take control of your personal finances.
-                        Track your income, expenses and monthly budgets
-                        in one place.
-                    </p>
+                <p class="lead mx-auto mb-4"
+                   style="max-width: 750px;">
 
-                    <div class="d-flex justify-content-center gap-3">
+                    Take control of your personal finances
+                    with a simple and free online budget tracker.
 
-                        <a href="/Account/Login"
-                           class="btn btn-primary btn-lg">
-                            Login
-                        </a>
+                    Record your income and expenses, organize
+                    transactions into categories and plan
+                    your monthly spending in one place.
 
-                        <a href="/Account/Register"
-                           class="btn btn-outline-primary btn-lg">
-                            Register
-                        </a>
+                </p>
+
+                <div class="d-flex justify-content-center
+                            flex-wrap gap-3 mb-4">
+
+                    <a href="/Account/Register"
+                       class="btn btn-primary btn-lg">
+
+                        Get Started for Free
+
+                    </a>
+
+                    <a href="/Account/Login"
+                       class="btn btn-outline-primary btn-lg">
+
+                        Log In
+
+                    </a>
+
+                </div>
+
+                <p class="small text-muted">
+
+                    Free to use · No installation required ·
+                    Currently under development
+
+                </p>
+
+            </section>
+
+
+            @* Main benefits *@
+            <section class="mb-5">
+
+                <div class="row g-4">
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="card h-100">
+
+                            <div class="card-body text-center">
+
+                                <h3 class="h5 mb-3">
+                                    Track Your Expenses
+                                </h3>
+
+                                <p class="text-muted mb-0">
+
+                                    Keep track of everyday expenses
+                                    and income. Organize transactions
+                                    by category and understand
+                                    where your money goes.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="card h-100">
+
+                            <div class="card-body text-center">
+
+                                <h3 class="h5 mb-3">
+                                    Plan Monthly Budgets
+                                </h3>
+
+                                <p class="text-muted mb-0">
+
+                                    Set spending limits for different
+                                    categories and create recurring
+                                    monthly budgets to help
+                                    manage your finances.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-12 col-md-4">
+
+                        <div class="card h-100">
+
+                            <div class="card-body text-center">
+
+                                <h3 class="h5 mb-3">
+                                    Understand Your Spending
+                                </h3>
+
+                                <p class="text-muted mb-0">
+
+                                    Explore your financial dashboard,
+                                    view spending charts and see
+                                    when your expenses approach
+                                    or exceed your budget.
+
+                                </p>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
                 </div>
 
-            </div>
+            </section>
+
+
+            @* About and development status *@
+            <section class="text-center py-4 border-top">
+
+                <h2 class="h3 mb-3">
+                    A Simple Way to Manage Your Money
+                </h2>
+
+                <p class="text-muted mx-auto mb-4"
+                   style="max-width: 750px;">
+
+                    Budget Manager is designed for individuals
+                    and households looking for an easy way
+                    to manage their personal budgets.
+
+                    The application is completely free
+                    and is still under active development.
+                    New improvements and features may be
+                    introduced as the project evolves.
+
+                </p>
+
+                <a href="/about"
+                   class="btn btn-outline-secondary">
+
+                    Learn More About Budget Manager
+
+                </a>
+
+            </section>
 
         </div>
 
