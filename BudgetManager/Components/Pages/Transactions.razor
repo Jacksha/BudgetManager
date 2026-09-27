@@ -8,6 +8,7 @@
 @using BudgetManager.Models
 @using BudgetManager.Services
 @using Microsoft.JSInterop
+@using System.Globalization
 
 @inject TransactionService TransactionService
 @inject CategoryService CategoryService
@@ -36,6 +37,142 @@
         @successMessage
     </div>
 }
+
+@* Transaction filters *@
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h5 class="card-title mb-3">
+            Filter transactions
+        </h5>
+
+        @* Month navigation *@
+        <div class="d-flex align-items-center
+                    justify-content-center gap-3 mb-4">
+
+            <button class="btn btn-outline-secondary"
+                    @onclick="PreviousMonth"
+                    disabled="@(isLoading || isSaving ||
+                                                                selectedDate.Year == 1 &&
+                                                                selectedDate.Month == 1)"
+                    aria-label="Previous month">
+                &lt;
+            </button>
+
+            <h5 class="mb-0 text-center">
+                @selectedDate.ToString(
+                                "MMMM yyyy",
+                                CultureInfo.GetCultureInfo("en-US"))
+            </h5>
+
+            <button class="btn btn-outline-secondary"
+                    @onclick="NextMonth"
+                    disabled="@(isLoading || isSaving ||
+                                                                selectedDate.Year == 9998 &&
+                                                                selectedDate.Month == 12)"
+                    aria-label="Next month">
+                &gt;
+            </button>
+
+        </div>
+
+        <div class="row g-3">
+
+            @* Category *@
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Category
+                </label>
+
+                <select class="form-select"
+                        @bind="filterCategoryId"
+                        disabled="@isSaving">
+
+                    <option value="0">
+                        All categories
+                    </option>
+
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category.Id">
+                            @category.Name
+                        </option>
+                    }
+
+                </select>
+
+            </div>
+
+            @* Type *@
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Type
+                </label>
+
+                <select class="form-select"
+                        @bind="filterType"
+                        disabled="@isSaving">
+
+                    <option value="">
+                        All types
+                    </option>
+
+                    <option value="@TransactionType.Expense">
+                        Expense
+                    </option>
+
+                    <option value="@TransactionType.Income">
+                        Income
+                    </option>
+
+                </select>
+
+            </div>
+
+            @* Description *@
+            <div class="col-12 col-md-4">
+
+                <label class="form-label">
+                    Search description
+                </label>
+
+                <input type="text"
+                       class="form-control"
+                       placeholder="Search transactions..."
+                       @bind="searchText"
+                       @bind:event="oninput"
+                       disabled="@isSaving" />
+
+            </div>
+
+            <div class="col-12">
+
+                <button class="btn btn-primary me-2"
+                        @onclick="ApplyFilters"
+                        disabled="@(isLoading || isSaving)">
+
+                    Apply filters
+
+                </button>
+
+                <button class="btn btn-outline-secondary"
+                        @onclick="ResetFilters"
+                        disabled="@(isLoading || isSaving)">
+
+                    Reset filters
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
 @* Add transaction *@
 <div class="card mb-4">
@@ -207,7 +344,7 @@
 else if (transactions.Count == 0)
 {
     <div class="alert alert-info">
-        You haven't recorded any transactions yet.
+        No transactions found for the selected filters.
     </div>
 }
 else
@@ -216,7 +353,7 @@ else
         <div class="card-body">
 
             <h5 class="card-title mb-3">
-                Recent transactions
+                Transactions
             </h5>
 
             <div class="table-responsive">
@@ -307,6 +444,12 @@ else
     private List<Transaction> transactions = new();
     private List<Category> categories = new();
 
+    // Transaction filters
+    private DateTime selectedDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private int filterCategoryId;
+    private TransactionType? filterType;
+    private string searchText = string.Empty;
+
     private string? userId;
     private string? errorMessage;
     private string? successMessage;
@@ -351,7 +494,6 @@ else
         }
     }
 
-
     private async Task LoadData()
     {
         if (userId is null)
@@ -360,10 +502,23 @@ else
         categories =
             await CategoryService.GetCategoriesAsync(userId);
 
-        transactions =
-            await TransactionService.GetTransactionsAsync(userId);
+        await LoadTransactions();
     }
 
+    private async Task LoadTransactions()
+    {
+        if (userId is null)
+            return;
+
+        transactions =
+            await TransactionService.GetFilteredTransactionsAsync(
+                userId,
+                selectedDate.Year,
+                selectedDate.Month,
+                filterCategoryId == 0 ? null : filterCategoryId,
+                filterType,
+                searchText);
+    }
 
     // CREATE & EDIT
     private async Task SaveTransaction()
@@ -535,4 +690,53 @@ else
                 });
         }
     }
+
+    private async Task ApplyFilters()
+    {
+        if (isLoading || isSaving)
+            return;
+
+        await LoadTransactions();
+    }
+
+    private async Task ResetFilters()
+    {
+        if (isLoading || isSaving)
+            return;
+
+        filterCategoryId = 0;
+        filterType = null;
+        searchText = string.Empty;
+
+        await LoadTransactions();
+    }
+
+    private async Task PreviousMonth()
+    {
+        if (isLoading || isSaving ||
+            (selectedDate.Year == 1 &&
+             selectedDate.Month == 1))
+        {
+            return;
+        }
+
+        selectedDate = selectedDate.AddMonths(-1);
+
+        await LoadTransactions();
+    }
+
+    private async Task NextMonth()
+    {
+        if (isLoading || isSaving ||
+            (selectedDate.Year == 9998 &&
+             selectedDate.Month == 12))
+        {
+            return;
+        }
+
+        selectedDate = selectedDate.AddMonths(1);
+
+        await LoadTransactions();
+    }
+
 }

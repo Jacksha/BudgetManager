@@ -28,6 +28,68 @@ namespace BudgetManager.Services
                 .ToListAsync();
         }
 
+        public async Task<List<Transaction>> GetFilteredTransactionsAsync(
+            string userId,
+            int year,
+            int month,
+            int? categoryId = null,
+            TransactionType? type = null,
+            string? searchText = null)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("Invalid user.");
+
+            if (year < 1 || year > 9998 ||
+                month < 1 || month > 12)
+            {
+                throw new ArgumentException("Invalid month or year.");
+            }
+
+            var startDate = new DateTime(year, month, 1);
+            var endDate = startDate.AddMonths(1);
+
+            await using var context =
+                await _contextFactory.CreateDbContextAsync();
+
+            // Start with transactions belonging to the current user
+            // within the selected month.
+            var query = context.Transactions
+                .AsNoTracking()
+                .Include(t => t.Category)
+                .Where(t =>
+                    t.ApplicationUserId == userId &&
+                    t.Date >= startDate &&
+                    t.Date < endDate);
+
+            // Optional category filter.
+            if (categoryId.HasValue && categoryId.Value > 0)
+            {
+                query = query.Where(t =>
+                    t.CategoryId == categoryId.Value);
+            }
+
+            // Optional transaction type filter.
+            if (type.HasValue)
+            {
+                query = query.Where(t =>
+                    t.Type == type.Value);
+            }
+
+            // Optional description search.
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var search = searchText.Trim();
+
+                query = query.Where(t =>
+                    t.Description.Contains(search));
+            }
+
+            return await query
+                .OrderByDescending(t => t.Date)
+                .ThenByDescending(t => t.Id)
+                .ToListAsync();
+        }
+
         public async Task AddTransactionAsync(
             string description,
             decimal amount,
