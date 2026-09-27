@@ -82,12 +82,6 @@ namespace BudgetManager.Data
                 .HasForeignKey(b => b.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // APPLICATION USER
-            builder.Entity<ApplicationUser>()
-                .Property(u => u.BaseCurrency)
-                .HasMaxLength(3)
-                .IsRequired();
-
             // Prevent duplicate monthly budgets for the same category.
             builder.Entity<Budget>()
                 .HasIndex(b => new
@@ -98,6 +92,17 @@ namespace BudgetManager.Data
                     b.Year
                 })
                 .IsUnique();
+
+            // APPLICATION USER
+            builder.Entity<ApplicationUser>()
+                .Property(u => u.BaseCurrency)
+                .HasMaxLength(3)
+                .IsRequired();
+
+            builder.Entity<ApplicationUser>()
+                .Property(u => u.DisplayName)
+                .HasMaxLength(35);
+
         }
     }
 }

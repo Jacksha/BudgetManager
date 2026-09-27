@@ -12,30 +12,75 @@
 <PageTitle>Profile</PageTitle>
 
 <h3>Profile</h3>
+
 <StatusMessage />
 
 <div class="row">
     <div class="col-md-6">
-        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+
+        <EditForm Model="Input"
+                  FormName="profile"
+                  OnValidSubmit="OnValidSubmitAsync"
+                  method="post">
+
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
+
+            <ValidationSummary class="text-danger"
+                               role="alert" />
+
+            @* Display name *@
             <div class="form-floating mb-3">
-                <input type="text" value="@username" class="form-control" placeholder="Please choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
+
+                <InputText id="display-name"
+                           @bind-Value="Input.DisplayName"
+                           class="form-control"
+                           maxlength="35"
+                           placeholder="Choose your nickName" />
+
+                <label for="display-name">
+                    NickName
+                </label>
+
+                <ValidationMessage For="() => Input.DisplayName"
+                                   class="text-danger" />
+
             </div>
+
+            <div class="form-text mb-3">
+                This name will be displayed in the application.
+                Your email address will still be used to log in.
+            </div>
+
+            @* Phone number *@
             <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
-                <label for="phone-number" class="form-label">Phone number</label>
-                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
+
+                <InputText id="phone-number"
+                           @bind-Value="Input.PhoneNumber"
+                           class="form-control"
+                           placeholder="Please enter your phone number." />
+
+                <label for="phone-number">
+                    Phone number
+                </label>
+
+                <ValidationMessage For="() => Input.PhoneNumber"
+                                   class="text-danger" />
+
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+
+            <button type="submit"
+                    class="w-100 btn btn-lg btn-primary">
+                Save
+            </button>
+
         </EditForm>
+
     </div>
 </div>
 
 @code {
     private ApplicationUser user = default!;
-    private string? username;
+
     private string? phoneNumber;
 
     [CascadingParameter]
@@ -47,29 +92,58 @@
     protected override async Task OnInitializedAsync()
     {
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
-        username = await UserManager.GetUserNameAsync(user);
+
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
+        Input.DisplayName ??= user.DisplayName;
         Input.PhoneNumber ??= phoneNumber;
     }
 
     private async Task OnValidSubmitAsync()
     {
+        var newDisplayName = Input.DisplayName?.Trim();
+
+        // Store an empty username as null.
+        if (string.IsNullOrWhiteSpace(newDisplayName))
+        {
+            newDisplayName = null;
+        }
+
+        user.DisplayName = newDisplayName;
+
         if (Input.PhoneNumber != phoneNumber)
         {
-            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!setPhoneResult.Succeeded)
-            {
-                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
-            }
+            user.PhoneNumber = Input.PhoneNumber;
+            user.PhoneNumberConfirmed = false;
+        }
+
+        var result = await UserManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(
+                " ",
+                result.Errors.Select(e => e.Description));
+
+            RedirectManager.RedirectToCurrentPageWithStatus(
+                $"Error: {errors}",
+                HttpContext);
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+
+        RedirectManager.RedirectToCurrentPageWithStatus(
+            "Your profile has been updated.",
+            HttpContext);
     }
 
     private sealed class InputModel
     {
+        [StringLength(35, ErrorMessage =
+            "Username cannot exceed 35 characters.")]
+        [Display(Name = "Username")]
+        public string? DisplayName { get; set; }
+
         [Phone]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }

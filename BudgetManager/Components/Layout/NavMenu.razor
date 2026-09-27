@@ -1,5 +1,12 @@
 ﻿@implements IDisposable
 
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using BudgetManager.Data
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject NavigationManager NavigationManager
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -43,7 +50,14 @@
                 </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
+
+                        <span class="bi bi-person-fill-nav-menu"
+                              aria-hidden="true"></span>
+
+                        @(string.IsNullOrWhiteSpace(displayName)
+                                                ? context.User.Identity?.Name
+                                                : displayName)
+
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
@@ -90,6 +104,32 @@
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+
+    private string? displayName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity?.IsAuthenticated != true)
+            return;
+
+        var userId = authState.User.FindFirstValue(
+            ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        await using var context =
+            await DbContextFactory.CreateDbContextAsync();
+
+        displayName = await context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.DisplayName)
+            .FirstOrDefaultAsync();
     }
 }
 
