@@ -51,23 +51,6 @@
                 Your email address will still be used to log in.
             </div>
 
-            @* Phone number *@
-            <div class="form-floating mb-3">
-
-                <InputText id="phone-number"
-                           @bind-Value="Input.PhoneNumber"
-                           class="form-control"
-                           placeholder="Please enter your phone number." />
-
-                <label for="phone-number">
-                    Phone number
-                </label>
-
-                <ValidationMessage For="() => Input.PhoneNumber"
-                                   class="text-danger" />
-
-            </div>
-
             <button type="submit"
                     class="w-100 btn btn-lg btn-primary">
                 Save
@@ -81,8 +64,6 @@
 @code {
     private ApplicationUser user = default!;
 
-    private string? phoneNumber;
-
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
 
@@ -93,29 +74,19 @@
     {
         user = await UserAccessor.GetRequiredUserAsync(HttpContext);
 
-        phoneNumber = await UserManager.GetPhoneNumberAsync(user);
-
         Input.DisplayName ??= user.DisplayName;
-        Input.PhoneNumber ??= phoneNumber;
     }
 
     private async Task OnValidSubmitAsync()
     {
         var newDisplayName = Input.DisplayName?.Trim();
 
-        // Store an empty username as null.
         if (string.IsNullOrWhiteSpace(newDisplayName))
         {
             newDisplayName = null;
         }
 
         user.DisplayName = newDisplayName;
-
-        if (Input.PhoneNumber != phoneNumber)
-        {
-            user.PhoneNumber = Input.PhoneNumber;
-            user.PhoneNumberConfirmed = false;
-        }
 
         var result = await UserManager.UpdateAsync(user);
 
@@ -140,12 +111,8 @@
     private sealed class InputModel
     {
         [StringLength(35, ErrorMessage =
-            "Username cannot exceed 35 characters.")]
-        [Display(Name = "Username")]
+            "NickName cannot exceed 35 characters.")]
+        [Display(Name = "NickName")]
         public string? DisplayName { get; set; }
-
-        [Phone]
-        [Display(Name = "Phone number")]
-        public string? PhoneNumber { get; set; }
     }
 }
